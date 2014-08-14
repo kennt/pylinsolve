@@ -7,9 +7,8 @@
 
 import sympy
 
-from ..value import Value
 
-class Variable(Value):
+class Variable(object):
     """ This class contains a 'variable'.  This is a value that
         is being solved here, thus it can change during solving.
         (This is the opposite of a parameter, which is not changed
@@ -28,17 +27,4 @@ class Variable(Value):
         self.default = default
 
         self.symbol = symbol or sympy.Symbol(name)
-        self._value = default
-        self._values = list()
-
-    @property
-    def value(self):
-        return self.value
-
-    @value.setter
-    def set_value(self, value):
-        self._value = value
-        self._values.append(value)
-
-    def values(self):
-        return self._values
+        self.value = default

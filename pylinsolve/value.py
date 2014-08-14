@@ -5,12 +5,13 @@
 
 """
 
+import sympy
+
 
 class Value(object):
-	def __init__(self, name, desc=None, default=None, symbol=None):
-		self.name = name
-		self.desc = desc
-		self.default = default
+    def __init__(self, name, desc=None, default=None, symbol=None):
+        self.name = name
+        self.desc = desc
+        self.default = default
 
-		self.symbol = symbol or sympy.Symbol(name)
-
+        self.symbol = symbol or sympy.Symbol(name)
