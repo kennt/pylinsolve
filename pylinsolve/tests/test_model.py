@@ -51,7 +51,6 @@ class TestModel(unittest.TestCase):
 
     # test rule creation
     # test a simple rule
-    # test for duplicate names
     # test for multiple name generation
     # test that the matrix is created correctly
     # test the solver
@@ -59,8 +58,10 @@ class TestModel(unittest.TestCase):
     # test the end condition
     # test for access to the solution
     # test for access to solutions array
+    # test for access to time series data
     # test sparse matrix support
     # test for changes to params while running
+    # some numerical tests to check for accuracy
 
     def test_set_var_default(self):
         """ Test the set_var_default """
@@ -79,3 +80,7 @@ class TestModel(unittest.TestCase):
         model.set_param_initial(122)
         param = model.param('test2')
         self.assertEquals(122, param.initial)
+
+    def test_rule(self):
+        """ Test creating rules """
+        pass

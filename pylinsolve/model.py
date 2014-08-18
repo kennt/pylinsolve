@@ -154,7 +154,8 @@ class Model(object):
                 equation: A string containing the equation.  There
                     cannot be any free symbols in the equation, all
                     non-numeric symbols must have been defined as a
-                    parameter or a variable.
+                    parameter, variable, or a sympy built-in
+                    variable (like pi or E).
                 desc: A description of the equation
 
             Returns: an Equation

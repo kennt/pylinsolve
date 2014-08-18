@@ -7,7 +7,9 @@
 
 import unittest
 
-from pylinsolve.equation import Equation, _rewrite
+import sympy
+
+from pylinsolve.equation import Equation, _rewrite, EquationError
 from pylinsolve.model import _add_var_to_context, _add_param_to_context
 from pylinsolve.parameter import Parameter
 from pylinsolve.variable import Variable
@@ -30,13 +32,20 @@ class TestEquation(unittest.TestCase):
             return self._parameters
 
     def setUp(self):
+        # pylint: disable=invalid-name
+
         self.model = TestEquation.MockModel()
         self.model.variables()['x'] = Variable('x')
         self.model.variables()['y'] = Variable('y')
         self.model.variables()['z'] = Variable('z')
+        self.x = self.model.variables()['x'].symbol
+        self.y = self.model.variables()['y'].symbol
+        self.z = self.model.variables()['z'].symbol
 
         self.model.parameters()['a'] = Parameter('a')
         self.model.parameters()['b'] = Parameter('b')
+        self.a = self.model.parameters()['a'].symbol
+        self.b = self.model.parameters()['b'].symbol
 
         for var in self.model.variables().values():
             _add_var_to_context(self.model._local_context, var)
@@ -54,18 +63,22 @@ class TestEquation(unittest.TestCase):
         variables['x'] = Variable('x')
         variables['y'] = Variable('y')
         x_series = Variable.series_name('x')
-        self.assertEquals('x - y', _rewrite(variables, 'x - y'))
-        self.assertEquals('xx - y', _rewrite(variables, 'xx - y'))
-        self.assertEquals('xx - yx', _rewrite(variables, 'xx - yx'))
-        self.assertEquals('xx(0) - yx', _rewrite(variables, 'xx(0) - yx'))
-        self.assertEquals('x-(y)', _rewrite(variables, 'x = y'))
+        self.assertEquals('x - y', _rewrite(variables, {}, 'x - y'))
+        self.assertEquals('xx - y', _rewrite(variables, {}, 'xx - y'))
+        self.assertEquals('xx - yx', _rewrite(variables, {}, 'xx - yx'))
+        self.assertEquals('xx(0) - yx', _rewrite(variables, {}, 'xx(0) - yx'))
+        self.assertEquals('x-(y)', _rewrite(variables, {}, 'x = y'))
         self.assertEquals('{0}(-1)'.format(x_series),
-                          _rewrite(variables, 'x(-1)'))
+                          _rewrite(variables, {}, 'x(-1)'))
         self.assertEquals('{0}(-t)'.format(x_series),
-                          _rewrite(variables, 'x(-t)'))
+                          _rewrite(variables, {}, 'x(-t)'))
 
         self.assertEquals('z-({0}(10))'.format(x_series),
-                          _rewrite(variables, 'z=x(10)'))
+                          _rewrite(variables, {}, 'z=x(10)'))
+
+        with self.assertRaises(EquationError) as context:
+            _rewrite(variables, {'a': Parameter('a')}, 'a(-1)')
+        self.assertEquals('parameter-function', context.exception.errorid)
 
     def test_parse_one_variable(self):
         """ Test one-variable equation. """
@@ -126,36 +139,151 @@ class TestEquation(unittest.TestCase):
         self.assertTrue(terms.keys()[0] in ['x', 'y'])
         self.assertTrue(terms.keys()[1] in ['x', 'y'])
 
-        print terms
-
-        for term in eqn.variable_terms():
-            self.assertTrue(term[1].name in self.model.variables())
-
-            if term[1].name == 'x':
-                self.assertEquals(0, len(term[0]))
-            else:
-                self.assertEquals(1, len(term[0]))
-                self.assertEquals('-', term[0][0])
+        self.assertEquals(1, terms['x'])
+        self.assertEquals(-1, terms['y'])
 
         self.assertTrue('x' in self.model.variables())
         self.assertTrue('y' in self.model.variables())
 
-        terms = eqn.constant_term()
-        self.assertIsNotNone(eqn)
-        self.assertEquals(0, len(terms))
+        term = eqn.constant_term()
+        self.assertEquals(0, term)
 
-    # test handling of constant expressions
-    # test handling of non-linear expressions
-    # test handling of variable expressions
-    # test multiple variables
-    # test handling of numeric constants (e, pi)
-    # test handling of functions (cos, sin, log)
-    # error, no variables in equation
-    # error, non-linear expressions
-    # error, missing symbols in model
-    # test rewriting, series accessor
-    # test rewriting, = sign
-    # test logic parts, what if vars and parameters mixed together
-    # test to see if terms add up if in multiple parts 3*a*x + 4*x
-    # test to see if constant terms sum up
+    def test_constant_expressions(self):
+        """ Test the basic handling of simple constant expressions.
+        """
+        # simple constants
+        eqn = Equation('32')
+        eqn.model = self.model
+        eqn.parse(self.model._local_context)
 
+        self.assertEquals(0, len(eqn.variable_terms()))
+        self.assertEquals(32, eqn.constant_term())
+
+        # constants that use parameters
+        eqn = Equation('22*a')
+        eqn.model = self.model
+        eqn.parse(self.model._local_context)
+
+        self.assertEquals(0, len(eqn.variable_terms()))
+        self.assertEquals('22*a', str(eqn.constant_term()))
+
+        # constants that use sympy symbols (such as pi, E)
+        eqn = Equation('44*pi*E')
+        eqn.model = self.model
+        eqn.parse(self.model._local_context)
+
+        self.assertEquals(0, len(eqn.variable_terms()))
+        self.assertEquals(0, 44*sympy.pi*sympy.E - eqn.constant_term())
+
+        # constant expressions that use functions
+        eqn = Equation('99*log(10)')
+        eqn.model = self.model
+        eqn.parse(self.model._local_context)
+
+        self.assertEquals(0, len(eqn.variable_terms()))
+        self.assertEquals(0, 99*sympy.log(10) - eqn.constant_term())
+
+        # multiple constant expressions
+        eqn = Equation('3*pi**2 + 99*log(10)')
+        eqn.model = self.model
+        eqn.parse(self.model._local_context)
+
+        self.assertEquals(0, len(eqn.variable_terms()))
+        self.assertEquals(
+            0, (3*sympy.pi*sympy.pi + 99*sympy.log(10)) - eqn.constant_term())
+
+        # constants on the other side of =
+        eqn = Equation('4*pi**2 = 101*log(10)')
+        eqn.model = self.model
+        eqn.parse(self.model._local_context)
+
+        self.assertEquals(0, len(eqn.variable_terms()))
+        self.assertEquals(
+            0,
+            (4*sympy.pi*sympy.pi - 101*sympy.log(10)) - eqn.constant_term())
+
+    def test_variable_expressions(self):
+        """ Test more complicated variable expressions """
+        eqn = Equation('4*x + 3*pi*x')
+        eqn.model = self.model
+        eqn.parse(self.model._local_context)
+
+        self.assertEquals(1, len(eqn.variable_terms()))
+        self.assertEquals(0, (4 + 3*sympy.pi) - eqn.variable_terms()['x'])
+        self.assertEquals(0, eqn.constant_term())
+
+        eqn = Equation('4*x*log(5) + 3*pi*x')
+        eqn.model = self.model
+        eqn.parse(self.model._local_context)
+
+        self.assertEquals(1, len(eqn.variable_terms()))
+        self.assertEquals(
+            0,
+            (4*sympy.log(5) + 3*sympy.pi) - eqn.variable_terms()['x'])
+        self.assertEquals(0, eqn.constant_term())
+
+        eqn = Equation('4*x*b + 3*a*x')
+        eqn.model = self.model
+        eqn.parse(self.model._local_context)
+
+        self.assertEquals(1, len(eqn.variable_terms()))
+        self.assertEquals(
+            0,
+            (4*self.b + 3*self.a) - eqn.variable_terms()['x'])
+        self.assertEquals(0, eqn.constant_term())
+
+    def test_multiple_variables(self):
+        """ Multiple-variable equations """
+        eqn = Equation('14*x + 3.6*pi*z')
+        eqn.model = self.model
+        eqn.parse(self.model._local_context)
+
+        self.assertEquals(2, len(eqn.variable_terms()))
+        self.assertEquals(0, 14 - eqn.variable_terms()['x'])
+        self.assertEquals(0, (3.6*sympy.pi) - eqn.variable_terms()['z'])
+        self.assertEquals(0, eqn.constant_term())
+
+    def test_nonlinear_expressions(self):
+        """ Non-linear expressions """
+        with self.assertRaises(EquationError) as context:
+            eqn = Equation('14*x**2 + 3.6*pi*z')
+            eqn.model = self.model
+            eqn.parse(self.model._local_context)
+        self.assertEquals('unexpected-term', context.exception.errorid)
+
+        with self.assertRaises(EquationError) as context:
+            eqn = Equation('14*x*y + 3.6*pi*z')
+            eqn.model = self.model
+            eqn.parse(self.model._local_context)
+        self.assertEquals('not-independent', context.exception.errorid)
+
+        with self.assertRaises(EquationError) as context:
+            eqn = Equation('14*a*log(x) + 3.6*pi*z')
+            eqn.model = self.model
+            eqn.parse(self.model._local_context)
+        self.assertEquals('non-linear', context.exception.errorid)
+
+    def test_missing_symbols(self):
+        """ Unknown symbols in equation """
+        with self.assertRaises(NameError):
+            eqn = Equation('14*x + 23*ww')
+            eqn.model = self.model
+            eqn.parse(self.model._local_context)
+
+    def test_series_accessor(self):
+        """ Test to see that the series accessor is converted correctly. """
+        # This should work for variables, but not work for parameters
+        eqn = Equation('x - x(-1)')
+        eqn.model = self.model
+        eqn.parse(self.model._local_context)
+
+        self.assertEquals(1, len(eqn.variable_terms()))
+        self.assertEquals(1, eqn.variable_terms()['x'])
+        self.assertEquals('-{0}(-1)'.format(Variable.series_name('x')),
+                          str(eqn.constant_term()))
+
+        with self.assertRaises(EquationError) as context:
+            eqn = Equation('x - a(-1)')
+            eqn.model = self.model
+            eqn.parse(self.model._local_context)
+        self.assertEquals('parameter-function', context.exception.errorid)
