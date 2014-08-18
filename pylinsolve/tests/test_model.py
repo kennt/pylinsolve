@@ -61,3 +61,21 @@ class TestModel(unittest.TestCase):
     # test for access to solutions array
     # test sparse matrix support
     # test for changes to params while running
+
+    def test_set_var_default(self):
+        """ Test the set_var_default """
+        model = Model()
+        var = model.var('test')
+        self.assertEquals(None, var.default)
+        model.set_var_default(12)
+        var = model.var('test2')
+        self.assertEquals(12, var.default)
+
+    def test_param_initial(self):
+        """ Test the set_param_default """
+        model = Model()
+        param = model.param('test')
+        self.assertEquals(None, param.initial)
+        model.set_param_initial(122)
+        param = model.param('test2')
+        self.assertEquals(122, param.initial)

@@ -9,6 +9,8 @@ import sympy
 
 
 class Value(object):
+    """ Base class for a variable/parameter """
+
     def __init__(self, name, desc=None, default=None, symbol=None):
         self.name = name
         self.desc = desc

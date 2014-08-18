@@ -7,6 +7,9 @@
 
 import sympy
 
+from pylinsolve import InvalidNameError
+from pylinsolve.variable import Variable
+
 
 class Parameter(object):
     """ This class contains a 'parameter'.  This is an exogenous
@@ -21,6 +24,8 @@ class Parameter(object):
             value:
     """
     def __init__(self, name, desc=None, initial=None, symbol=None):
+        if name in Variable.ILLEGAL_NAMES:
+            raise InvalidNameError(name, 'Name already used by sympy')
         self.name = name
         self.desc = desc
         self.initial = initial

@@ -7,7 +7,10 @@
 
 import unittest
 
-from pylinsolve.equation import Equation
+from pylinsolve.equation import Equation, _rewrite
+from pylinsolve.model import _add_var_to_context, _add_param_to_context
+from pylinsolve.parameter import Parameter
+from pylinsolve.variable import Variable
 
 
 class TestEquation(unittest.TestCase):
@@ -18,6 +21,7 @@ class TestEquation(unittest.TestCase):
         def __init__(self):
             self._variables = {}
             self._parameters = {}
+            self._local_context = {}
 
         def variables(self):
             return self._variables
@@ -26,12 +30,42 @@ class TestEquation(unittest.TestCase):
             return self._parameters
 
     def setUp(self):
-        self.model = MockModel()
+        self.model = TestEquation.MockModel()
+        self.model.variables()['x'] = Variable('x')
+        self.model.variables()['y'] = Variable('y')
+        self.model.variables()['z'] = Variable('z')
+
+        self.model.parameters()['a'] = Parameter('a')
+        self.model.parameters()['b'] = Parameter('b')
+
+        for var in self.model.variables().values():
+            _add_var_to_context(self.model._local_context, var)
+        for param in self.model.parameters().values():
+            _add_param_to_context(self.model._local_context, param)
 
     def test_equation_init(self):
         """ Test if we can construct an instance """
         eqn = Equation('x = y')
         self.assertIsNotNone(eqn)
+
+    def test_equation_rewrite(self):
+        """ Test the equation rewriting function """
+        variables = dict()
+        variables['x'] = Variable('x')
+        variables['y'] = Variable('y')
+        x_series = Variable.series_name('x')
+        self.assertEquals('x - y', _rewrite(variables, 'x - y'))
+        self.assertEquals('xx - y', _rewrite(variables, 'xx - y'))
+        self.assertEquals('xx - yx', _rewrite(variables, 'xx - yx'))
+        self.assertEquals('xx(0) - yx', _rewrite(variables, 'xx(0) - yx'))
+        self.assertEquals('x-(y)', _rewrite(variables, 'x = y'))
+        self.assertEquals('{0}(-1)'.format(x_series),
+                          _rewrite(variables, 'x(-1)'))
+        self.assertEquals('{0}(-t)'.format(x_series),
+                          _rewrite(variables, 'x(-t)'))
+
+        self.assertEquals('z-({0}(10))'.format(x_series),
+                          _rewrite(variables, 'z=x(10)'))
 
     def test_parse_one_variable(self):
         """ Test one-variable equation. """
@@ -41,20 +75,20 @@ class TestEquation(unittest.TestCase):
 
         self.assertEquals('z', eqn.equation)
 
+        # need to generate the local context from the model
+        eqn.parse(self.model._local_context)
+
         terms = eqn.variable_terms()
-        # list of (coefficient, variable) tuples
-        # expect terms to be [([], Variable('x')), (['-'], Variable('y'))]
         self.assertEquals(1, len(terms))
-        self.assertEquals('z', terms[0][1].name)
+        self.assertTrue('z' in terms)
+        self.assertEquals(1, terms['z'])
         self.assertTrue('z' in self.model.variables())
 
-        self.assertTrue(terms[0][1].name in self.model.variables())
+        self.assertTrue(terms.keys()[0] in self.model.variables())
 
-        self.assertEquals(0, len(terms[0][0]))
-
-        terms = eqn.constant_terms()
-        self.assertIsNotNone(eqn)
-        self.assertEquals(0, len(terms))
+        term = eqn.constant_term()
+        self.assertIsNotNone(term)
+        self.assertEquals(0, term)
 
     def test_parse_one_var_with_coeff(self):
         eqn = Equation('-2*z')
@@ -63,22 +97,20 @@ class TestEquation(unittest.TestCase):
 
         self.assertEquals('-2*z', eqn.equation)
 
+        eqn.parse(self.model._local_context)
+
         terms = eqn.variable_terms()
-        # list of (coefficient, variable) tuples
-        # expect terms to be [([], Variable('x')), (['-'], Variable('y'))]
         self.assertEquals(1, len(terms))
-        self.assertEquals('z', terms[0][1].name)
+        self.assertTrue('z' in terms)
         self.assertTrue('z' in self.model.variables())
 
-        self.assertTrue(terms[0][1].name in self.model.variables())
+        self.assertTrue(terms.keys()[0] in self.model.variables())
 
-        self.assertEquals(1, len(terms[0][0]))
-        self.assertEquals('-2', terms[0][0])
+        self.assertEquals(-2, terms['z'])
 
-        terms = eqn.constant_terms()
-        self.assertIsNotNone(eqn)
-        self.assertEquals(0, len(terms))
-
+        term = eqn.constant_term()
+        self.assertIsNotNone(term)
+        self.assertEquals(0, term)
 
     def test_simple_parse(self):
         """ Test very simple equation parsing """
@@ -87,14 +119,14 @@ class TestEquation(unittest.TestCase):
         self.assertIsNotNone(eqn)
 
         self.assertEquals('x = y', eqn.equation)
+        eqn.parse(self.model._local_context)
 
         terms = eqn.variable_terms()
-        # list of (coefficient, variable) tuples
-        # expect terms to be [([], Variable('x')), (['-'], Variable('y'))]
         self.assertEquals(2, len(terms))
-        self.assertNotEqual(terms[0][1].name, terms[1][1].name)
-        self.assertTrue(terms[0][1].name in ['x', 'y'])
-        self.assertTrue(terms[1][1].name in ['x', 'y'])
+        self.assertTrue(terms.keys()[0] in ['x', 'y'])
+        self.assertTrue(terms.keys()[1] in ['x', 'y'])
+
+        print terms
 
         for term in eqn.variable_terms():
             self.assertTrue(term[1].name in self.model.variables())
@@ -108,7 +140,7 @@ class TestEquation(unittest.TestCase):
         self.assertTrue('x' in self.model.variables())
         self.assertTrue('y' in self.model.variables())
 
-        terms = eqn.constant_terms()
+        terms = eqn.constant_term()
         self.assertIsNotNone(eqn)
         self.assertEquals(0, len(terms))
 
@@ -121,3 +153,9 @@ class TestEquation(unittest.TestCase):
     # error, no variables in equation
     # error, non-linear expressions
     # error, missing symbols in model
+    # test rewriting, series accessor
+    # test rewriting, = sign
+    # test logic parts, what if vars and parameters mixed together
+    # test to see if terms add up if in multiple parts 3*a*x + 4*x
+    # test to see if constant terms sum up
+
