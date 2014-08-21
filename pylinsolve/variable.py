@@ -5,12 +5,12 @@
 
 """
 
-import sympy
+from sympy import Symbol
 
 from pylinsolve import InvalidNameError
 
 
-class Variable(object):
+class Variable(Symbol):
     """ This class contains a 'variable'.  This is a value that
         is being solved here, thus it can change during solving.
         (This is the opposite of a parameter, which is not changed
@@ -20,24 +20,27 @@ class Variable(object):
             I, oo, nan, pi, E
 
         Attributes:
-            symbol:
             name:
             desc:
             default:
+            model:
             value:
     """
+    # pylint: disable=too-many-ancestors
 
     ILLEGAL_NAMES = ['I', 'oo', 'nan', 'pi', 'E']
 
-    def __init__(self, name, desc=None, default=None, symbol=None):
+    def __init__(self, name, desc=None, default=None):
         if name in Variable.ILLEGAL_NAMES:
             raise InvalidNameError(name, 'Name already used by sympy')
+
+        super(Variable, self).__init__(name)
 
         self.name = name
         self.desc = desc
         self.default = default
+        self.model = None
 
-        self.symbol = symbol or sympy.Symbol(name)
         self.value = default
 
     @classmethod

@@ -7,11 +7,10 @@
 
 import collections
 
-import sympy
+from sympy import Symbol
 from sympy import Function
-from sympy.utilities.lambdify import implemented_function
 
-from pylinsolve.equation import Equation
+from pylinsolve.equation import Equation, EquationError
 from pylinsolve.parameter import Parameter
 from pylinsolve.variable import Variable
 
@@ -40,40 +39,71 @@ def _add_var_to_context(context, var):
     """ Adds the var and the variable's series accessor function
         to the list of known symbols.
     """
-    name = var.name
-    f_name = Variable.series_name(name)
-    var_acc = implemented_function(Function(f_name),
-                                   lambda(t): var.model.get_at(name, t))
-
-    context[name] = var.symbol
-    context[f_name] = var_acc
+    context[var.name] = var
 
 
 def _add_param_to_context(context, param):
     """ Adds the paramter to the list of known symbols.
     """
-    context[param.name] = param.symbol
+    context[param.name] = param
+
+
+class _SeriesAccessor(Function):
+    """ Implements a sympy function to access the variable's values
+        from previous iterations.
+    """
+    nargs = 2
+
+    @classmethod
+    def eval(cls, *arg):
+        if not isinstance(arg[0], Variable):
+            raise EquationError('not-a-variable',
+                                str(arg[0]),
+                                'Cannot access a series for a non-variable')
+
+        if arg[0].model is None:
+            raise EquationError('no-model',
+                                arg[0].name,
+                                'Variable must belong to a model')
+        return arg[0].model.get_at(arg[0], arg[1])
+
+
+def _add_series_accessor(context):
+    """ Adds the function to access values from the previous iteration.
+    """
+    context['_series_acc'] = _SeriesAccessor
+    context['_iter'] = Symbol('_iter')
 
 
 class Model(object):
     """ This is the main Model class.  Variables, parameters, and
         equations are defined through this class.
+
+        Attributes:
+            variables:
+            parameters:
+            equations:
     """
+    # pylint: disable=too-many-instance-attributes
 
     def __init__(self):
-        self._vars = collections.OrderedDict()
-        self._params = collections.OrderedDict()
-        self._equations = collections.OrderedDict()
+        self.variables = collections.OrderedDict()
+        self.parameters = collections.OrderedDict()
+        self.equations = list()
+
+        self._private_parameters = collections.OrderedDict()
         self._solutions = list()
         self._local_context = dict()
         self._var_default = None
         self._param_initial = None
 
+        _add_series_accessor(self._local_context)
+
     def set_var_default(self, default):
         """ Sets the general default value for all variables. """
         self._var_default = default
 
-    def var(self, name, desc=None, default=None, symbol=None):
+    def var(self, name, desc=None, default=None):
         """ Creates a variable for use within the model.
 
             Arguments:
@@ -82,9 +112,6 @@ class Model(object):
                 desc: A longer description of the variable.
                 default: The default value of the variable, if the
                     value is not set.
-                symbol: The sympy Symbol instance associated
-                    with this variable. If not specifed, a
-                    symbol with the name is created.
 
             Returns: a Variable
 
@@ -92,30 +119,14 @@ class Model(object):
                 DuplicateNameError:
         """
         default = default or self._var_default
-        if name in self._vars or name in self._params:
+        if name in self.variables or name in self.parameters:
             raise DuplicateNameError('Name already in use: ' + name)
-        var = Variable(name, desc=desc, default=default, symbol=symbol)
-        self._vars[name] = var
+        var = Variable(name, desc=desc, default=default)
+        self.variables[name] = var
+        var.model = self
 
         _add_var_to_context(self._local_context, var)
         return var
-
-    def vars(self, names):
-        """ Creates multiple variables for use within the model.
-
-            Arguments:
-                names:
-
-            Returns: a list of Variables that were created.
-
-            Raises:
-                DuplicateNameError
-        """
-        # Perform the symbol expansion and then add the names
-        vars_created = []
-        for sym in sympy.symbols(names):
-            vars_created.append(self.var(sym.name, symbol=sym))
-        return vars_created
 
     def set_param_initial(self, initial):
         """ Sets the default initial parameter value for all Parameters """
@@ -127,25 +138,12 @@ class Model(object):
             Returns: a Parameter
         """
         initial = initial or self._param_initial
-        if name in self._vars or name in self._params:
+        if name in self.variables or name in self.parameters:
             raise DuplicateNameError('Name already in use: ' + name)
-        param = Parameter(name, desc, initial)
-        self._params[name] = param
+        param = Parameter(name, desc=desc, initial=initial)
+        self.parameters[name] = param
         _add_param_to_context(self._local_context, param)
         return param
-
-    def params(self, name):
-        """ Creates multiple parameters for use within the model.
-
-            Arguments:
-                names:
-
-            Returns: a list of parameters that were created
-
-            Raises:
-                DuplicateNameError
-        """
-        pass
 
     def add(self, equation, desc=None):
         """ Adds an equation to the model.
@@ -163,6 +161,7 @@ class Model(object):
         eqn = Equation(equation, desc=desc)
         eqn.model = self
         eqn.parse(self._local_context)
+        self.equations.append(eqn)
 
     def solve(self, iterations=10, until=None, threshold=0.001,
               relexation=None):
@@ -193,37 +192,52 @@ class Model(object):
         """
         return self._solutions[-1]
 
-    def get_at(self, name, iteration):
+    def get_at(self, variable, iteration):
         """ Returns the value for a variable at an iteration.
             The value for iter may be positive or negative:
                 If >= 0, absolute position
                     0 is the very first iteration.  Note that
                     iterations are available only AFTER the
-                    solver has returned success.
+                    solver has returned success.  Otherwise the
+                    variable's default value is returned.
                 If < 0, relative position
                     -1 is the iteration previous to the current
                     iteration.
 
             Arguments:
-                name:
+                variable:
                 iteration:
 
             Returns:
                 The value of the variable for that iteration.
         """
-        return self._solutions[iteration][name]
+        # Need to replace the iteration needed with a variable
+        # that represents the accessed variable
+        #   for example, if are processing iteration 10
+        #     then x[-1] -> _x__1
+        #   _x__1 then gets added as a parameter
+        #
+        #   For positive iterations, that's a static iteration
+        #   x[5] -> _x_5
+        #   _x_5 will get added as a parameter.
+        #   If iteration 5 has not happened yet, the default value
+        #   value will be returned.
+        #
+        # Before solving, the appropriate values will be set in the
+        # parameters.
+        #
 
-    def variables(self):
-        """ Returns the dict of variables
-        """
-        return self._vars
+        if not iteration.is_number or not iteration.is_Number:
+            raise EquationError('iteration-not-a-number',
+                                str(iteration),
+                                'iteration value must be a number')
+        iter_value = int(iteration)
+        if iter_value < 0:
+            iter_name = "_{0}__{1}".format(str(variable), -iter_value)
+        else:
+            iter_name = "_{0}_{1}".format(str(variable), iter_value)
 
-    def parameters(self):
-        """ Returns the dict of parameters
-        """
-        return self._params
-
-    def equations(self):
-        """ Returns the list of equations
-        """
-        return self._equations
+        param = Parameter(iter_name, initial=variable.default)
+        self._private_parameters[iter_name] = param
+        _add_param_to_context(self._local_context, param)
+        return param

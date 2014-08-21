@@ -32,8 +32,8 @@ class TestModel(unittest.TestCase):
         with self.assertRaises(DuplicateNameError):
             model.param('x')
 
-        self.assertTrue('x' in model.variables())
-        self.assertTrue('x' not in model.parameters())
+        self.assertTrue('x' in model.variables)
+        self.assertTrue('x' not in model.parameters)
 
     def test_param(self):
         """ Test parameter creation """
@@ -46,8 +46,8 @@ class TestModel(unittest.TestCase):
         with self.assertRaises(DuplicateNameError):
             model.param('x')
 
-        self.assertTrue('x' not in model.variables())
-        self.assertTrue('x' in model.parameters())
+        self.assertTrue('x' not in model.variables)
+        self.assertTrue('x' in model.parameters)
 
     # test rule creation
     # test a simple rule
@@ -83,4 +83,42 @@ class TestModel(unittest.TestCase):
 
     def test_rule(self):
         """ Test creating rules """
-        pass
+        model = Model()
+        model.var('x')
+        model.var('y')
+        model.add('x = y')
+
+        self.assertEquals(2, len(model.variables))
+        self.assertEquals(0, len(model.parameters))
+        self.assertEquals(1, len(model.equations))
+
+        eqn = model.equations[0]
+        self.assertEquals(2, len(eqn.variable_terms()))
+        self.assertTrue('x' in eqn.variable_terms())
+        self.assertEquals(1, eqn.variable_terms()['x'])
+        self.assertTrue('y' in eqn.variable_terms())
+        self.assertEquals(-1, eqn.variable_terms()['y'])
+
+    def test_rule_with_coefficients(self):
+        """ Test creating rules with simple coefficents """
+        model = Model()
+        model.var('x')
+        model.var('y')
+        model.add('2*x + 3*y')
+
+        self.assertEquals(2, len(model.variables))
+        self.assertEquals(0, len(model.parameters))
+        self.assertEquals(1, len(model.equations))
+
+        eqn = model.equations[0]
+        self.assertEquals(2, len(eqn.variable_terms()))
+        self.assertTrue('x' in eqn.variable_terms())
+        self.assertEquals(2, eqn.variable_terms()['x'])
+        self.assertTrue('y' in eqn.variable_terms())
+        self.assertEquals(3, eqn.variable_terms()['y'])
+
+    # test mixed variable/parameter equations
+    # test series accessor
+    # error: series accessor with non-bound variable
+    # test variable/parameter evaluation
+    # test series accessor evaluation

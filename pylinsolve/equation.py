@@ -10,8 +10,6 @@ import re
 from sympy.parsing.sympy_parser import parse_expr
 from sympy.parsing.sympy_parser import factorial_notation, auto_number
 
-from pylinsolve.variable import Variable
-
 
 class EquationError(ValueError):
     """ Exception: An error in the equation specification was found
@@ -37,7 +35,9 @@ def _rewrite(variables, parameters, equation):
         expression.
         This will convert:
             This is to allow easier access to the solution series data.
-            'x(-t)' -> '__x_(-t)'
+            'x(-t)' -> '_series_acc(x, _iter-t)'
+            We translate this into a function so that we can evaluate
+            the parameter symbolically before the call.
 
             Put the equation into our "canonical" form, 'f(x)=0'
             This only occurs if an '=' appears in the expression
@@ -49,7 +49,7 @@ def _rewrite(variables, parameters, equation):
     # as if we are trying to access the time series data.
     for var in variables.keys():
         new_equation = re.sub(r"\b{0}\(".format(var),
-                              "{0}(".format(Variable.series_name(var)),
+                              "_series_acc({0},".format(var),
                               new_equation)
 
     # Check for parameters that are being used like the variable
@@ -92,8 +92,8 @@ class Equation(object):
             Raises:
                 EquationError
         """
-        variables = self.model.variables()
-        parameters = self.model.parameters()
+        variables = self.model.variables
+        parameters = self.model.parameters
 
         # Rewrite the equation into canonical form
         equation = _rewrite(variables, parameters, self.equation)
@@ -101,6 +101,7 @@ class Equation(object):
         # parse the equation
         expr = parse_expr(equation,
                           context,
+                          evaluate=False,
                           transformations=(factorial_notation, auto_number))
         expr = expr.expand()
         self._separate_terms(expr)
@@ -110,7 +111,7 @@ class Equation(object):
             (with the coefficients broken out separately).
         """
         # pylint: disable=too-many-branches
-        variables = self.model.variables()
+        variables = self.model.variables
 
         coeffs = expr.as_coefficients_dict()
         for key in coeffs.keys():
@@ -122,7 +123,7 @@ class Equation(object):
                 if key.name in variables:
                     self._var_terms.setdefault(key.name, 0)
                     self._var_terms[key.name] += coeffs[key]
-                elif key.name in self.model.parameters():
+                elif key.name in self.model.parameters:
                     # This is not a variable, may be a constant or parameter
                     # add to the constant list
                     self._const_term += coeffs[key]*key

@@ -8,9 +8,11 @@
 import unittest
 
 import sympy
+from sympy import Symbol
 
 from pylinsolve.equation import Equation, _rewrite, EquationError
 from pylinsolve.model import _add_var_to_context, _add_param_to_context
+from pylinsolve.model import _add_series_accessor
 from pylinsolve.parameter import Parameter
 from pylinsolve.variable import Variable
 
@@ -21,36 +23,42 @@ class TestEquation(unittest.TestCase):
     class MockModel(object):
         """ Mock model class used for equation testing. """
         def __init__(self):
-            self._variables = {}
-            self._parameters = {}
+            self.variables = {}
+            self.parameters = {}
             self._local_context = {}
 
-        def variables(self):
-            return self._variables
-
-        def parameters(self):
-            return self._parameters
+        def get_at(self, name, iteration):
+            if not iteration.is_number or not iteration.is_Number:
+                raise EquationError('test-not-a-number', '', '')
+            if iteration < 0:
+                return Symbol("_{0}__{1}".format(name, -iteration))
+            else:
+                return Symbol("_{0}_{1}".format(name, iteration))
 
     def setUp(self):
         # pylint: disable=invalid-name
 
         self.model = TestEquation.MockModel()
-        self.model.variables()['x'] = Variable('x')
-        self.model.variables()['y'] = Variable('y')
-        self.model.variables()['z'] = Variable('z')
-        self.x = self.model.variables()['x'].symbol
-        self.y = self.model.variables()['y'].symbol
-        self.z = self.model.variables()['z'].symbol
+        self.model.variables['x'] = Variable('x')
+        self.model.variables['y'] = Variable('y')
+        self.model.variables['z'] = Variable('z')
+        self.x = self.model.variables['x']
+        self.x.model = self.model
+        self.y = self.model.variables['y']
+        self.y.model = self.model
+        self.z = self.model.variables['z']
+        self.z.model = self.model
 
-        self.model.parameters()['a'] = Parameter('a')
-        self.model.parameters()['b'] = Parameter('b')
-        self.a = self.model.parameters()['a'].symbol
-        self.b = self.model.parameters()['b'].symbol
+        self.model.parameters['a'] = Parameter('a')
+        self.model.parameters['b'] = Parameter('b')
+        self.a = self.model.parameters['a']
+        self.b = self.model.parameters['b']
 
-        for var in self.model.variables().values():
+        for var in self.model.variables.values():
             _add_var_to_context(self.model._local_context, var)
-        for param in self.model.parameters().values():
+        for param in self.model.parameters.values():
             _add_param_to_context(self.model._local_context, param)
+        _add_series_accessor(self.model._local_context)
 
     def test_equation_init(self):
         """ Test if we can construct an instance """
@@ -62,18 +70,17 @@ class TestEquation(unittest.TestCase):
         variables = dict()
         variables['x'] = Variable('x')
         variables['y'] = Variable('y')
-        x_series = Variable.series_name('x')
         self.assertEquals('x - y', _rewrite(variables, {}, 'x - y'))
         self.assertEquals('xx - y', _rewrite(variables, {}, 'xx - y'))
         self.assertEquals('xx - yx', _rewrite(variables, {}, 'xx - yx'))
         self.assertEquals('xx(0) - yx', _rewrite(variables, {}, 'xx(0) - yx'))
         self.assertEquals('x-(y)', _rewrite(variables, {}, 'x = y'))
-        self.assertEquals('{0}(-1)'.format(x_series),
+        self.assertEquals('_series_acc(x,-1)',
                           _rewrite(variables, {}, 'x(-1)'))
-        self.assertEquals('{0}(-t)'.format(x_series),
+        self.assertEquals('_series_acc(x,-t)',
                           _rewrite(variables, {}, 'x(-t)'))
 
-        self.assertEquals('z-({0}(10))'.format(x_series),
+        self.assertEquals('z-(_series_acc(x,10))',
                           _rewrite(variables, {}, 'z=x(10)'))
 
         with self.assertRaises(EquationError) as context:
@@ -95,9 +102,9 @@ class TestEquation(unittest.TestCase):
         self.assertEquals(1, len(terms))
         self.assertTrue('z' in terms)
         self.assertEquals(1, terms['z'])
-        self.assertTrue('z' in self.model.variables())
+        self.assertTrue('z' in self.model.variables)
 
-        self.assertTrue(terms.keys()[0] in self.model.variables())
+        self.assertTrue(terms.keys()[0] in self.model.variables)
 
         term = eqn.constant_term()
         self.assertIsNotNone(term)
@@ -115,9 +122,9 @@ class TestEquation(unittest.TestCase):
         terms = eqn.variable_terms()
         self.assertEquals(1, len(terms))
         self.assertTrue('z' in terms)
-        self.assertTrue('z' in self.model.variables())
+        self.assertTrue('z' in self.model.variables)
 
-        self.assertTrue(terms.keys()[0] in self.model.variables())
+        self.assertTrue(terms.keys()[0] in self.model.variables)
 
         self.assertEquals(-2, terms['z'])
 
@@ -142,8 +149,8 @@ class TestEquation(unittest.TestCase):
         self.assertEquals(1, terms['x'])
         self.assertEquals(-1, terms['y'])
 
-        self.assertTrue('x' in self.model.variables())
-        self.assertTrue('y' in self.model.variables())
+        self.assertTrue('x' in self.model.variables)
+        self.assertTrue('y' in self.model.variables)
 
         term = eqn.constant_term()
         self.assertEquals(0, term)
@@ -279,7 +286,7 @@ class TestEquation(unittest.TestCase):
 
         self.assertEquals(1, len(eqn.variable_terms()))
         self.assertEquals(1, eqn.variable_terms()['x'])
-        self.assertEquals('-{0}(-1)'.format(Variable.series_name('x')),
+        self.assertEquals('-_x__1',
                           str(eqn.constant_term()))
 
         with self.assertRaises(EquationError) as context:
@@ -287,3 +294,28 @@ class TestEquation(unittest.TestCase):
             eqn.model = self.model
             eqn.parse(self.model._local_context)
         self.assertEquals('parameter-function', context.exception.errorid)
+
+        # Test the evaluation of the accessor, for this test case
+        # it always evaluates to -42
+        eqn = Equation('x(-1)')
+        eqn.model = self.model
+        eqn.parse(self.model._local_context)
+        self.assertEquals('_x__1', str(eqn.constant_term()))
+
+    def test_mixed_equations(self):
+        """ Test mixed parameter/variable equations """
+        eqn = Equation('14*a*b + 3.6*a*z')
+        eqn.model = self.model
+        eqn.parse(self.model._local_context)
+
+        self.assertEquals(1, len(eqn.variable_terms()))
+        self.assertEquals(0, (3.6*self.a) - eqn.variable_terms()['z'])
+        self.assertEquals(0, 14*self.a*self.b - eqn.constant_term())
+
+        # TODO: This is a test of the model, not the equation
+        # with self.assertRaises(EquationError) as context:
+        #     # Unbound values are not allowed as parameters
+        #     # to a series accessor function.
+        #     eqn = Equation('14*a*y(b) + 3.6*a*z')
+        #     eqn.model = self.model
+        #     eqn.parse(self.model._local_context)
