@@ -112,6 +112,7 @@ class Equation(object):
         """
         # pylint: disable=too-many-branches
         variables = self.model.variables
+        first_var = None
 
         coeffs = expr.as_coefficients_dict()
         for key in coeffs.keys():
@@ -123,6 +124,7 @@ class Equation(object):
                 if key.name in variables:
                     self._var_terms.setdefault(key.name, 0)
                     self._var_terms[key.name] += coeffs[key]
+                    first_var = first_var or variables[key.name]
                 elif key.name in self.model.parameters:
                     # This is not a variable, may be a constant or parameter
                     # add to the constant list
@@ -153,6 +155,7 @@ class Equation(object):
                         self._var_terms.setdefault(var.name, 0)
                         self._var_terms[var.name] += \
                             coeffs[key] * coeff_mul_parts[0]
+                        first_var = first_var or variables[var.name]
                     else:
                         raise EquationError('non-linear',
                                             self.equation,
@@ -164,6 +167,16 @@ class Equation(object):
                 raise EquationError('unexpected-term',
                                     self.equation,
                                     'unexpected term : ' + str(key))
+
+        if first_var is None:
+            raise EquationError('no-variable',
+                                self.equation,
+                                'No variable found in equation')
+        if first_var.equation is not None:
+            raise EquationError('not-properly-specified',
+                                self.equation,
+                                'Equations are not specified correctly')
+        first_var.equation = self
 
     def variable_terms(self):
         """ Returns a dict of the variable terms in the equation.

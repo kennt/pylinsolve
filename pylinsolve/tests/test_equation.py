@@ -18,6 +18,7 @@ from pylinsolve.variable import Variable
 
 
 class TestEquation(unittest.TestCase):
+    """ Tests the Equation class """
     # pylint: disable=missing-docstring
 
     class MockModel(object):
@@ -28,6 +29,7 @@ class TestEquation(unittest.TestCase):
             self._local_context = {}
 
         def get_at(self, name, iteration):
+            # pylint: disable=no-self-use
             if not iteration.is_number or not iteration.is_Number:
                 raise EquationError('test-not-a-number', '', '')
             if iteration < 0:
@@ -111,6 +113,7 @@ class TestEquation(unittest.TestCase):
         self.assertEquals(0, term)
 
     def test_parse_one_var_with_coeff(self):
+        """ Parse a simple variable with coefficient """
         eqn = Equation('-2*z')
         eqn.model = self.model
         self.assertIsNotNone(eqn)
@@ -159,52 +162,58 @@ class TestEquation(unittest.TestCase):
         """ Test the basic handling of simple constant expressions.
         """
         # simple constants
-        eqn = Equation('32')
+        eqn = Equation('x=32')
         eqn.model = self.model
         eqn.parse(self.model._local_context)
 
-        self.assertEquals(0, len(eqn.variable_terms()))
-        self.assertEquals(32, eqn.constant_term())
+        self.assertEquals(1, len(eqn.variable_terms()))
+        self.assertEquals(-32, eqn.constant_term())
 
         # constants that use parameters
-        eqn = Equation('22*a')
+        self.model.variables['x'].equation = None
+        eqn = Equation('x=22*a')
         eqn.model = self.model
         eqn.parse(self.model._local_context)
 
-        self.assertEquals(0, len(eqn.variable_terms()))
-        self.assertEquals('22*a', str(eqn.constant_term()))
+        self.assertEquals(1, len(eqn.variable_terms()))
+        self.assertEquals('-22*a', str(eqn.constant_term()))
 
         # constants that use sympy symbols (such as pi, E)
-        eqn = Equation('44*pi*E')
+        self.model.variables['x'].equation = None
+        eqn = Equation('x=44*pi*E')
         eqn.model = self.model
         eqn.parse(self.model._local_context)
 
-        self.assertEquals(0, len(eqn.variable_terms()))
-        self.assertEquals(0, 44*sympy.pi*sympy.E - eqn.constant_term())
+        self.assertEquals(1, len(eqn.variable_terms()))
+        self.assertEquals(0, -44*sympy.pi*sympy.E - eqn.constant_term())
 
         # constant expressions that use functions
-        eqn = Equation('99*log(10)')
+        self.model.variables['x'].equation = None
+        eqn = Equation('x=99*log(10)')
         eqn.model = self.model
         eqn.parse(self.model._local_context)
 
-        self.assertEquals(0, len(eqn.variable_terms()))
-        self.assertEquals(0, 99*sympy.log(10) - eqn.constant_term())
+        self.assertEquals(1, len(eqn.variable_terms()))
+        self.assertEquals(0, -99*sympy.log(10) - eqn.constant_term())
 
         # multiple constant expressions
-        eqn = Equation('3*pi**2 + 99*log(10)')
+        self.model.variables['x'].equation = None
+        eqn = Equation('x=3*pi**2 + 99*log(10)')
         eqn.model = self.model
         eqn.parse(self.model._local_context)
 
-        self.assertEquals(0, len(eqn.variable_terms()))
+        self.assertEquals(1, len(eqn.variable_terms()))
         self.assertEquals(
-            0, (3*sympy.pi*sympy.pi + 99*sympy.log(10)) - eqn.constant_term())
+            0,
+            -(3*sympy.pi*sympy.pi + 99*sympy.log(10)) - eqn.constant_term())
 
         # constants on the other side of =
-        eqn = Equation('4*pi**2 = 101*log(10)')
+        self.model.variables['x'].equation = None
+        eqn = Equation('x + 4*pi**2 = 101*log(10)')
         eqn.model = self.model
         eqn.parse(self.model._local_context)
 
-        self.assertEquals(0, len(eqn.variable_terms()))
+        self.assertEquals(1, len(eqn.variable_terms()))
         self.assertEquals(
             0,
             (4*sympy.pi*sympy.pi - 101*sympy.log(10)) - eqn.constant_term())
@@ -219,6 +228,7 @@ class TestEquation(unittest.TestCase):
         self.assertEquals(0, (4 + 3*sympy.pi) - eqn.variable_terms()['x'])
         self.assertEquals(0, eqn.constant_term())
 
+        self.model.variables['x'].equation = None
         eqn = Equation('4*x*log(5) + 3*pi*x')
         eqn.model = self.model
         eqn.parse(self.model._local_context)
@@ -229,6 +239,7 @@ class TestEquation(unittest.TestCase):
             (4*sympy.log(5) + 3*sympy.pi) - eqn.variable_terms()['x'])
         self.assertEquals(0, eqn.constant_term())
 
+        self.model.variables['x'].equation = None
         eqn = Equation('4*x*b + 3*a*x')
         eqn.model = self.model
         eqn.parse(self.model._local_context)
@@ -297,10 +308,12 @@ class TestEquation(unittest.TestCase):
 
         # Test the evaluation of the accessor, for this test case
         # it always evaluates to -42
-        eqn = Equation('x(-1)')
-        eqn.model = self.model
-        eqn.parse(self.model._local_context)
-        self.assertEquals('_x__1', str(eqn.constant_term()))
+        with self.assertRaises(EquationError) as context:
+            self.model.variables['x'].equation = None
+            eqn = Equation('x(-1)')
+            eqn.model = self.model
+            eqn.parse(self.model._local_context)
+        self.assertEquals('no-variable', context.exception.errorid)
 
     def test_mixed_equations(self):
         """ Test mixed parameter/variable equations """
@@ -311,6 +324,19 @@ class TestEquation(unittest.TestCase):
         self.assertEquals(1, len(eqn.variable_terms()))
         self.assertEquals(0, (3.6*self.a) - eqn.variable_terms()['z'])
         self.assertEquals(0, 14*self.a*self.b - eqn.constant_term())
+
+    def test_variable_equation(self):
+        """ Check to see that the equations are being set in the
+            variable.
+        """
+        eqn = Equation('x = 4*a')
+        eqn.model = self.model
+        eqn.parse(self.model._local_context)
+
+        varx = self.model.variables['x']
+        self.assertIsNotNone(varx)
+        self.assertIsNotNone(varx.equation)
+        self.assertEquals(eqn, varx.equation)
 
         # TODO: This is a test of the model, not the equation
         # with self.assertRaises(EquationError) as context:

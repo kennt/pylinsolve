@@ -25,6 +25,9 @@ class Variable(Symbol):
             default:
             model:
             value:
+            equation: This is the equation that is used to specify
+                this variable.  In Linear Algebra this is the row
+                used to specify the A(i,i) term.
     """
     # pylint: disable=too-many-ancestors
 
@@ -40,6 +43,7 @@ class Variable(Symbol):
         self.desc = desc
         self.default = default
         self.model = None
+        self.equation = None
 
         self.value = default
 

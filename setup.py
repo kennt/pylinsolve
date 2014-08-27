@@ -10,7 +10,7 @@ setup(
 	name='pylinsolve',
 	version='0.1dev',
 	packages=find_packages(),
-	install_requires=['sympy'],
+	install_requires=['sympy', 'numpy'],
 	license='MIT',
 	author='Kenn Takara',
 	author_email='kenn.takara@outlook.com',

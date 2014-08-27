@@ -34,4 +34,39 @@ class Parameter(Symbol):
         self.desc = desc
         self.initial = initial
 
-        self.value = initial
+        self._value = initial
+
+    @property
+    def value(self):
+        """ Getter accessor for parameter value """
+        return self._value
+
+    @value.setter
+    def value(self, val):
+        """ Setter accessor for parameter value """
+        self._value = val
+
+
+class SeriesParameter(Parameter):
+    """ A parameter that can access the previous solution values.
+
+        Attributes:
+            name:
+            variable:
+            iteration:
+            initial:
+    """
+    # pylint: disable=too-many-ancestors
+
+    def __init__(self, name, variable=None, iteration=None, initial=None):
+        super(SeriesParameter, self).__init__(name, initial=initial)
+        if variable is None or iteration is None:
+            raise ValueError('variable and iteration cannot be none')
+        self.variable = variable
+        self.iteration = iteration
+
+    @property
+    def value(self):
+        """ Returns the value of a variable at a another iteration.
+        """
+        return self.variable.model.get_value(self.variable, self.iteration)
