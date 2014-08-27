@@ -5,6 +5,7 @@
 
 """
 
+import collections
 import unittest
 
 import sympy
@@ -24,8 +25,8 @@ class TestEquation(unittest.TestCase):
     class MockModel(object):
         """ Mock model class used for equation testing. """
         def __init__(self):
-            self.variables = {}
-            self.parameters = {}
+            self.variables = collections.OrderedDict()
+            self.parameters = collections.OrderedDict()
             self._local_context = {}
 
         def get_at(self, name, iteration):

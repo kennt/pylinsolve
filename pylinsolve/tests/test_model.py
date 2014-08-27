@@ -16,7 +16,7 @@ from pylinsolve.model import _run_solver
 
 class TestModel(unittest.TestCase):
     """ Testcases for the model """
-    # pylint: disable=missing-docstring
+    # pylint: disable=missing-docstring,invalid-name
 
     def setUp(self):
         pass
@@ -151,8 +151,6 @@ class TestModel(unittest.TestCase):
 
     def test_run_solver(self):
         """ Simple tests to see if the solver works """
-        # pylint: disable=invalid-name
-
         A = numpy.array([[10., -1., 2., 0.],
                          [-1., 11., -1., 3.],
                          [2., -1., 10., -1.],
@@ -184,8 +182,6 @@ class TestModel(unittest.TestCase):
 
     def test_run_solver_failure(self):
         """ Test a case where the algorithm diverges """
-        # pylint: disable=invalid-name
-
         A = numpy.array([[2., 3.],
                          [5., 7.]])
         b = numpy.array([11., 13.])
@@ -221,8 +217,6 @@ class TestModel(unittest.TestCase):
 
     def test_prepare_solver(self):
         """ Test the _prepare_solver() function """
-        # pylint: disable=invalid-name
-
         model = Model()
         model.var('x')
         model.var('y')
@@ -249,9 +243,52 @@ class TestModel(unittest.TestCase):
         self.assertEquals(5, b[0])
         self.assertEquals(-22, b[1])
 
+    def test_update_solutions(self):
+        """ Test _update_solutions function """
+        model = Model()
+        varx = model.var('x')
+        vary = model.var('y')
+
+        model._update_solutions(numpy.array([1.1, 2.2]))
+        self.assertEquals(1, len(model.solutions))
+        self.assertEquals(1.1, varx.value)
+        self.assertTrue('x' in model.solutions[0])
+        self.assertEquals(1.1, model.solutions[0]['x'])
+        self.assertEquals(2.2, vary.value)
+        self.assertTrue('y' in model.solutions[0])
+        self.assertEquals(2.2, model.solutions[0]['y'])
+
+        model._update_solutions(numpy.array([3.3, 4.4]))
+        self.assertEquals(2, len(model.solutions))
+        self.assertEquals(3.3, varx.value)
+        self.assertTrue('x' in model.solutions[1])
+        self.assertEquals(3.3, model.solutions[1]['x'])
+        self.assertEquals(4.4, vary.value)
+        self.assertTrue('y' in model.solutions[1])
+        self.assertEquals(4.4, model.solutions[1]['y'])
+
+    def test_get_value(self):
+        """ Test the get_value function """
+        model = Model()
+        varx = model.var('x', default=-1)
+        vary = model.var('y')
+
+        model._update_solutions(numpy.array([1.1, 2.2]))
+        model._update_solutions(numpy.array([3.3, 4.4]))
+
+        self.assertEquals(1.1, model.get_value(varx, 0))
+        self.assertEquals(1.1, model.get_value(varx, -2))
+        self.assertEquals(4.4, model.get_value(vary, 1))
+        self.assertEquals(4.4, model.get_value(vary, -1))
+
+        with self.assertRaises(IndexError):
+            self.assertEquals(-1, model.get_value(varx, -1000))
+
+        with self.assertRaises(IndexError):
+            self.assertEquals(-1, model.get_value(varx, 1000))
+
     def test_parameter_eval(self):
         """ Test evaluation of parameters before solving """
-        # pylint: disable=invalid-name
         model = Model()
         model.var('x')
         model.var('y')
@@ -262,22 +299,83 @@ class TestModel(unittest.TestCase):
         A, b = model._prepare_solver()
         self.assertEquals(1, A[0, 0])
         self.assertEquals(-1.2, A[0, 1])
-        self.assertEquals(-2.3, A[1, 0])
+        self.assertEquals(2.3, A[1, 0])
         self.assertEquals(1, A[1, 1])
         self.assertEquals(5, b[0])
         self.assertEquals(10, b[1])
 
     def test_series_parameter_eval(self):
         """ Test evaluation of series parameter values before solving """
-        pass
+        model = Model()
+        model.var('x')
+        model.var('y')
+        model.param('a', initial=1.2)
+        model.param('b', initial=-2.3)
+        model.add('x - x(-1) = a*y + 5')
+        model.add('y = b*x + 10')
+
+        # add some dummy solutions
+        model._update_solutions(numpy.array([1.1, 2.2]))
+        model._update_solutions(numpy.array([3.3, 4.4]))
+
+        A, b = model._prepare_solver()
+        self.assertEquals(1, A[0, 0])
+        self.assertEquals(-1.2, A[0, 1])
+        self.assertEquals(2.3, A[1, 0])
+        self.assertEquals(1, A[1, 1])
+        self.assertEquals(8.3, b[0])
+        self.assertEquals(10, b[1])
+
+        model._update_solutions(numpy.array([1., 2]))
+
+        A, b = model._prepare_solver()
+        self.assertEquals(1, A[0, 0])
+        self.assertEquals(-1.2, A[0, 1])
+        self.assertEquals(2.3, A[1, 0])
+        self.assertEquals(1, A[1, 1])
+        self.assertEquals(6., b[0])
+        self.assertEquals(10, b[1])
 
     # test the end condition
-    # test for access to the solution
-    # test for access to solutions array
-    # test for access to time series data
     # test sparse matrix support
     # test for changes to params while running
     # some numerical tests to check for accuracy
 
-    # test mixed variable/parameter equations
     # error: series accessor with non-bound variable
+
+    def test_full_model(self):
+        """ Test by implementing a model """
+        model = Model()
+        model.set_var_default(0)
+        model.vars('Y', 'YD', 'Ts', 'Td', 'Hs', 'Hh', 'Gs', 'Cs',
+                   'Cd', 'Ns', 'Nd')
+        model.set_param_initial(0)
+        Gd = model.param('Gd')
+        W = model.param('W')
+        alpha1 = model.param('alpha1')
+        alpha2 = model.param('alpha2')
+        theta = model.param('theta')
+
+        model.add('Cs = Cd')
+        model.add('Gs = Gd')
+        model.add('Ts = Td')
+        model.add('Ns = Nd')
+        model.add('YD = (W*Ns) - Ts')
+        model.add('Td = theta * W * Ns')
+        model.add('Cd = alpha1*YD + alpha2*Hh(-1)')
+        model.add('Hs - Hs(-1) =  Gd - Td')
+        model.add('Hh - Hh(-1) = YD - Cd')
+        model.add('Y = Cs + Gs')
+        model.add('Nd = Y/W')
+
+        # setup initial parameter values
+        Gd = 1.0
+        W = 1.0
+        alpha1 = 0.4
+        alpha2 = 0.6
+        theta = 1.0
+
+        model.solve()
+        print model.solutions[-1]
+        self.assertTrue(False)
+

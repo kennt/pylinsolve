@@ -66,7 +66,7 @@ class TestSeriesParameter(unittest.TestCase):
         """ Test get/set access of value attribute """
         model = TestSeriesParameter.MockModel()
 
-        varx = Variable('x')
+        varx = Variable('x', default=-1)
         varx.model = model
 
         param = SeriesParameter('a', variable=varx, iteration=-1)

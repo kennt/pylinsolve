@@ -183,6 +183,19 @@ class Model(object):
         self._var_map[var] = len(self._var_map)
         return var
 
+    def vars(self, *args):
+        """ Creates multiple variables at the same time.
+
+            Arguments:
+                *args: the names of the variables to create
+
+            Returns:
+                a list of the variables created
+        """
+        vars = list()
+        for arg in args:
+            vars.append(self.var(arg))
+
     def set_param_initial(self, initial):
         """ Sets the default initial parameter value for all Parameters """
         self._param_initial = initial
@@ -388,15 +401,10 @@ class Model(object):
                     absolute iteration position.  If negative, then
                     it is the relative iteration position (thus a
                     value of -1 means the previous iteration)
-
+            
             Returns:
-                None is returned if the iteration value is out
-                of range.  Otherwise the value of the variable for
-                that iteration is returned.  It is assumed that the
-                caller will take care of determining what should
-                be done.
+                The value of the variable at that iteration is
+                returned. If the iteration is out of range, an
+                IndexError exception will be raised.
         """
-        try:
-            return self.solutions[iteration][variable.name]
-        except IndexError:
-            return None
+        return self.solutions[iteration][variable.name]

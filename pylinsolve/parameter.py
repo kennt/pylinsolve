@@ -68,5 +68,12 @@ class SeriesParameter(Parameter):
     @property
     def value(self):
         """ Returns the value of a variable at a another iteration.
+
+            If the iteration value is out-of-range, the variable's
+            default value is returned.
         """
-        return self.variable.model.get_value(self.variable, self.iteration)
+        try:
+            return self.variable.model.get_value(
+                self.variable, self.iteration)
+        except IndexError:
+            return self.variable.default

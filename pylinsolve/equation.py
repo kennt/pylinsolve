@@ -111,8 +111,6 @@ class Equation(object):
         """
         # pylint: disable=too-many-branches
         variables = self.model.variables
-        first_var = None
-
         coeffs = expr.as_coefficients_dict()
         for key in coeffs.keys():
             if key.is_number:
@@ -123,9 +121,6 @@ class Equation(object):
                 if key.name in variables:
                     self._var_terms.setdefault(key.name, 0)
                     self._var_terms[key.name] += coeffs[key]
-                    if (first_var is None and
-                            variables[key.name].equation is None):
-                        first_var = first_var or variables[key.name]
                 elif key.name in self.model.parameters:
                     # This is not a variable, may be a constant or parameter
                     # add to the constant list
@@ -156,9 +151,9 @@ class Equation(object):
                         self._var_terms.setdefault(var.name, 0)
                         self._var_terms[var.name] += \
                             coeffs[key] * coeff_mul_parts[0]
-                        if (first_var is None and
-                                variables[var.name].equation is None):
-                            first_var = first_var or variables[var.name]
+                        # if (first_var is None and
+                        #         variables[var.name].equation is None):
+                        #     first_var = first_var or variables[var.name]
                     else:
                         raise EquationError('non-linear',
                                             self.equation,
@@ -171,12 +166,25 @@ class Equation(object):
                                     self.equation,
                                     'unexpected term : ' + str(key))
 
+        # go through the variables to see if one is being
+        # used here
+        first_var = None
+        print '====' + self.equation
+        for var in variables.values():
+            if var.equation is None:
+                print "var: {0}  var.equation: {1}".format(var, var.equation)
+            else:
+                print "var: {0}  var.equation: {1}".format(var, var.equation.equation)
+        for var in variables.values():
+            if var.equation is None and var.name in self._var_terms:
+                var.equation = self
+                first_var = var
+                break
         if first_var is None:
             raise EquationError('no-variable',
                                 self.equation,
                                 'Equation may not contain a variable ' +
                                 'or the system may be overspecified')
-        first_var.equation = self
 
     def variable_terms(self):
         """ Returns a dict of the variable terms in the equation.
