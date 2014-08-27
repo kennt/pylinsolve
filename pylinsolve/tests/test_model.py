@@ -156,8 +156,7 @@ class TestModel(unittest.TestCase):
         A = numpy.array([[10., -1., 2., 0.],
                          [-1., 11., -1., 3.],
                          [2., -1., 10., -1.],
-                         [0., 3., -1., 8.]
-            ])
+                         [0., 3., -1., 8.]])
         b = numpy.array([6., 25., -11., 15.])
         x = numpy.array([1., 1., 1., 1.])
 
@@ -170,16 +169,15 @@ class TestModel(unittest.TestCase):
         self.assertTrue(numpy.isclose(1., soln[3]))
 
         A = numpy.array([[16., 3.],
-                         [7., -11.],
-            ])
+                         [7., -11.]])
         b = numpy.array([11., 13.])
         x = numpy.array([1., 1.])
-        debuglist = list()  
+        debuglist = list()
         soln = _run_solver(A, x, b, threshold=1e-5, debuglist=debuglist)
 
         # Need to round the values up to 4 decimal places
         soln = numpy.around(soln, decimals=4)
-    
+
         self.assertIsNotNone(soln)
         self.assertTrue(numpy.isclose(0.8122, soln[0]))
         self.assertTrue(numpy.isclose(-0.6650, soln[1]))
@@ -189,16 +187,90 @@ class TestModel(unittest.TestCase):
         # pylint: disable=invalid-name
 
         A = numpy.array([[2., 3.],
-                         [5., 7.],
-            ])
+                         [5., 7.]])
         b = numpy.array([11., 13.])
         x = numpy.array([1.1, 2.3])
-        debuglist = list()  
+        debuglist = list()
         with self.assertRaises(SolutionNotFoundError):
-            soln = _run_solver(A, x, b, threshold=1e-4, debuglist=debuglist)
+            _run_solver(A, x, b, threshold=1e-4, debuglist=debuglist)
 
-    # test that the matrix is created correctly
-    # test the iterations
+    def test_equation_validate(self):
+        """ Test the error checking within the solve() function """
+        model = Model()
+        model.var('x')
+        with self.assertRaises(EquationError) as context:
+            model.solve()
+        self.assertEquals('under-specified', context.exception.errorid)
+
+    def test_latest_solution_vector(self):
+        """ Test that we grab the latest solution vector correctly """
+        model = Model()
+        varx = model.var('x', default=22)
+        vary = model.var('y', default=33)
+        varz = model.var('z', default=1024)
+        self.assertEquals(22, varx.value)
+        self.assertEquals(33, vary.value)
+        self.assertEquals(1024, varz.value)
+        soln = model._latest_solution_vector()
+
+        # the solution vector follows the order the variables
+        # were added
+        self.assertEquals(22, soln[0])
+        self.assertEquals(33, soln[1])
+        self.assertEquals(1024, soln[2])
+
+    def test_prepare_solver(self):
+        """ Test the _prepare_solver() function """
+        # pylint: disable=invalid-name
+
+        model = Model()
+        model.var('x')
+        model.var('y')
+        model.add('x - 3*y = 5')
+        model.add('2*x + y = 22')
+        A, b = model._prepare_solver()
+        self.assertEquals(1, A[0, 0])
+        self.assertEquals(-3, A[0, 1])
+        self.assertEquals(2, A[1, 0])
+        self.assertEquals(1, A[1, 1])
+        self.assertEquals(5, b[0])
+        self.assertEquals(22, b[1])
+
+        model = Model()
+        model.var('x')
+        model.var('y')
+        model.add('x = 3*y + 5')
+        model.add('y = 2*x - 22')
+        A, b = model._prepare_solver()
+        self.assertEquals(1, A[0, 0])
+        self.assertEquals(-3, A[0, 1])
+        self.assertEquals(-2, A[1, 0])
+        self.assertEquals(1, A[1, 1])
+        self.assertEquals(5, b[0])
+        self.assertEquals(-22, b[1])
+
+    def test_parameter_eval(self):
+        """ Test evaluation of parameters before solving """
+        # pylint: disable=invalid-name
+        model = Model()
+        model.var('x')
+        model.var('y')
+        model.param('a', initial=1.2)
+        model.param('b', initial=-2.3)
+        model.add('x = a*y + 5')
+        model.add('y = b*x + 10')
+        A, b = model._prepare_solver()
+        self.assertEquals(1, A[0, 0])
+        self.assertEquals(-1.2, A[0, 1])
+        self.assertEquals(-2.3, A[1, 0])
+        self.assertEquals(1, A[1, 1])
+        self.assertEquals(5, b[0])
+        self.assertEquals(10, b[1])
+
+    def test_series_parameter_eval(self):
+        """ Test evaluation of series parameter values before solving """
+        pass
+
     # test the end condition
     # test for access to the solution
     # test for access to solutions array
@@ -209,5 +281,3 @@ class TestModel(unittest.TestCase):
 
     # test mixed variable/parameter equations
     # error: series accessor with non-bound variable
-    # test variable/parameter evaluation
-    # test series accessor evaluation

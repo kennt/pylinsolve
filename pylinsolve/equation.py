@@ -101,7 +101,6 @@ class Equation(object):
         # parse the equation
         expr = parse_expr(equation,
                           context,
-                          evaluate=False,
                           transformations=(factorial_notation, auto_number))
         expr = expr.expand()
         self._separate_terms(expr)
@@ -124,7 +123,9 @@ class Equation(object):
                 if key.name in variables:
                     self._var_terms.setdefault(key.name, 0)
                     self._var_terms[key.name] += coeffs[key]
-                    first_var = first_var or variables[key.name]
+                    if (first_var is None and
+                            variables[key.name].equation is None):
+                        first_var = first_var or variables[key.name]
                 elif key.name in self.model.parameters:
                     # This is not a variable, may be a constant or parameter
                     # add to the constant list
@@ -155,7 +156,9 @@ class Equation(object):
                         self._var_terms.setdefault(var.name, 0)
                         self._var_terms[var.name] += \
                             coeffs[key] * coeff_mul_parts[0]
-                        first_var = first_var or variables[var.name]
+                        if (first_var is None and
+                                variables[var.name].equation is None):
+                            first_var = first_var or variables[var.name]
                     else:
                         raise EquationError('non-linear',
                                             self.equation,
@@ -171,11 +174,8 @@ class Equation(object):
         if first_var is None:
             raise EquationError('no-variable',
                                 self.equation,
-                                'No variable found in equation')
-        if first_var.equation is not None:
-            raise EquationError('not-properly-specified',
-                                self.equation,
-                                'Equations are not specified correctly')
+                                'Equation may not contain a variable ' +
+                                'or the system may be overspecified')
         first_var.equation = self
 
     def variable_terms(self):

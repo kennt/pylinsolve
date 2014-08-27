@@ -338,6 +338,19 @@ class TestEquation(unittest.TestCase):
         self.assertIsNotNone(varx.equation)
         self.assertEquals(eqn, varx.equation)
 
+    def test_equation_matching(self):
+        """ Test the equation->variable matching """
+        eqn1 = Equation('x + 4*y = 22')
+        eqn1.model = self.model
+        eqn1.parse(self.model._local_context)
+        self.assertEquals(self.x.equation, eqn1)
+
+        eqn2 = Equation('2*x + 3*y = 34')
+        eqn2.model = self.model
+        eqn2.parse(self.model._local_context)
+        self.assertEquals(self.x.equation, eqn1)
+        self.assertEquals(self.y.equation, eqn2)
+
         # TODO: This is a test of the model, not the equation
         # with self.assertRaises(EquationError) as context:
         #     # Unbound values are not allowed as parameters

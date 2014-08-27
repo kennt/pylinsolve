@@ -250,6 +250,15 @@ class Model(object):
                 A tuple of matrices, (A, b)
         """
         # pylint: disable=invalid-name
+
+        # prepare the local context in order to eval the
+        # variables
+        context = dict()
+        for param in self.parameters.values():
+            context[param] = param.value
+        for param in self._private_parameters.values():
+            context[param] = param.value
+
         nvars = len(self.variables)
         b = numpy.zeros((nvars,))
         A = numpy.zeros((nvars, nvars))
@@ -257,10 +266,9 @@ class Model(object):
         for variable in self.variables.values():
             for varname, term in variable.equation.variable_terms().items():
                 index = self._var_map[self.variables[varname]]
-                A[row, index] = term.evalf(self._local_context)
+                A[row, index] = term.evalf(subs=context)
 
-            b[row] = -variable.equation.constant_term().evalf(
-                self._local_context)
+            b[row] = -variable.equation.constant_term().evalf(subs=context)
             row += 1
 
         return (A, b)
