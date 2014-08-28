@@ -352,3 +352,15 @@ class TestEquation(unittest.TestCase):
         eqn2.parse(self.model._local_context)
         self.assertEquals(self.x.equation, eqn1)
         self.assertEquals(self.y.equation, eqn2)
+
+    def test_variable_equation_matching(self):
+        """ Test the variable/equation matching algorithm """
+        eqn1 = Equation('y = 4*x + 32')
+        eqn1.model = self.model
+        eqn1.parse(self.model._local_context)
+        eqn2 = Equation('y = 2*x + 22')
+        eqn2.model = self.model
+        eqn2.parse(self.model._local_context)
+
+        self.assertEquals(eqn1, self.y.equation)
+        self.assertEquals(eqn2, self.x.equation)

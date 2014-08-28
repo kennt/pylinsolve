@@ -161,17 +161,31 @@ class Equation(object):
                                     self.equation,
                                     'unexpected term : ' + str(term))
 
+        # First, try to determine the first variable to appear in
+        # the equation.  We'll have to manually parse the string.
         first_var = None
-        for var in variables.values():
-            if var.equation is None and var.name in self._var_terms:
-                var.equation = self
-                first_var = var
+        for match in re.finditer(r"\b\w+\b", self.equation):
+            if (match.group() in variables
+                    and (match.end() >= len(self.equation)
+                         or self.equation[match.end()] != '(')):
+                first_var = variables[match.group()]
                 break
+
+        # could not find a match, iterate through the variables
+        # for a match.
+        if first_var is not None and first_var.equation is not None:
+            first_var = None
+            for var in variables.values():
+                if var.equation is None and var.name in self._var_terms:
+                    first_var = var
+                    break
+
         if first_var is None:
             raise EquationError('no-variable',
                                 self.equation,
                                 'Equation may not contain a variable ' +
                                 'or the system may be overspecified')
+        first_var.equation = self
 
     def variable_terms(self):
         """ Returns a dict of the variable terms in the equation.
