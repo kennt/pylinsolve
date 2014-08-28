@@ -30,6 +30,7 @@ class TestEquation(unittest.TestCase):
             self._local_context = {}
 
         def get_at(self, name, iteration):
+            """ Implements the model get_at() """
             # pylint: disable=no-self-use
             if not iteration.is_number or not iteration.is_Number:
                 raise EquationError('test-not-a-number', '', '')
@@ -268,7 +269,7 @@ class TestEquation(unittest.TestCase):
             eqn = Equation('14*x**2 + 3.6*pi*z')
             eqn.model = self.model
             eqn.parse(self.model._local_context)
-        self.assertEquals('unexpected-term', context.exception.errorid)
+        self.assertEquals('non-linear', context.exception.errorid)
 
         with self.assertRaises(EquationError) as context:
             eqn = Equation('14*x*y + 3.6*pi*z')
@@ -351,11 +352,3 @@ class TestEquation(unittest.TestCase):
         eqn2.parse(self.model._local_context)
         self.assertEquals(self.x.equation, eqn1)
         self.assertEquals(self.y.equation, eqn2)
-
-        # TODO: This is a test of the model, not the equation
-        # with self.assertRaises(EquationError) as context:
-        #     # Unbound values are not allowed as parameters
-        #     # to a series accessor function.
-        #     eqn = Equation('14*a*y(b) + 3.6*a*z')
-        #     eqn.model = self.model
-        #     eqn.parse(self.model._local_context)

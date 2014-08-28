@@ -79,7 +79,7 @@ def _add_series_accessor(context):
 def _run_solver(A, x, b,
                 max_iterations=10, relax=1.0,
                 until=None, threshold=0.001,
-                debuglist=None):
+                decimals=None, debuglist=None):
     """ Runs the main solver loop
 
         Returns:
@@ -118,6 +118,8 @@ def _run_solver(A, x, b,
 
     if soln is None:
         raise SolutionNotFoundError()
+    if decimals is not None:
+        soln = numpy.around(soln, decimals=decimals)
     return soln
 
 
@@ -192,9 +194,10 @@ class Model(object):
             Returns:
                 a list of the variables created
         """
-        vars = list()
+        varlist = list()
         for arg in args:
-            vars.append(self.var(arg))
+            varlist.append(self.var(arg))
+        return varlist
 
     def set_param_initial(self, initial):
         """ Sets the default initial parameter value for all Parameters """
@@ -279,9 +282,10 @@ class Model(object):
         for variable in self.variables.values():
             for varname, term in variable.equation.variable_terms().items():
                 index = self._var_map[self.variables[varname]]
-                A[row, index] = term.evalf(subs=context)
+                A[row, index] = sympify(term).evalf(subs=context)
 
-            b[row] = -variable.equation.constant_term().evalf(subs=context)
+            b[row] = -sympify(
+                variable.equation.constant_term()).evalf(subs=context)
             row += 1
 
         return (A, b)
@@ -298,7 +302,7 @@ class Model(object):
         self.solutions.append(new_soln)
 
     def solve(self, iterations=10, until=None, threshold=0.001,
-              relaxation=1.0):
+              relaxation=1.0, decimals=None):
         """ Runs the solver.
 
             The solver will try to find a solution until one of the
@@ -325,12 +329,15 @@ class Model(object):
         # pylint: disable=invalid-name
         self._validate_equations()
         x = self._latest_solution_vector()
+        if len(self.solutions) == 0:
+            self._update_solutions(x)
         A, b = self._prepare_solver()
         solution = _run_solver(A, x, b,
                                max_iterations=iterations,
                                until=until,
                                threshold=threshold,
-                               relax=relaxation)
+                               relax=relaxation,
+                               decimals=decimals)
 
         # unpack the solution vector into the variables and
         # solution dict()
@@ -401,7 +408,7 @@ class Model(object):
                     absolute iteration position.  If negative, then
                     it is the relative iteration position (thus a
                     value of -1 means the previous iteration)
-            
+
             Returns:
                 The value of the variable at that iteration is
                 returned. If the iteration is out of range, an

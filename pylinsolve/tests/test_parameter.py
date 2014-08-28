@@ -16,9 +16,6 @@ class TestParameter(unittest.TestCase):
     """ Testcases for the Parameter class
     """
 
-    def setUp(self):
-        pass
-
     def test_parameter_create(self):
         """ Test simple variable creation """
         param = Parameter('a')
@@ -52,9 +49,6 @@ class TestSeriesParameter(unittest.TestCase):
             self.last_variable = variable
             self.last_iteration = iteration
             return iteration
-
-    def setUp(self):
-        pass
 
     def test_seriesparameter_create(self):
         """ Simple SeriesParameter create """

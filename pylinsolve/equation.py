@@ -111,70 +111,57 @@ class Equation(object):
         """
         # pylint: disable=too-many-branches
         variables = self.model.variables
-        coeffs = expr.as_coefficients_dict()
-        for key in coeffs.keys():
-            if key.is_number:
-                # this evaluates to a number, so no variables/parameters
-                # are involved in the expression.
-                self._const_term += coeffs[key]*key
-            elif key.is_Symbol:
-                if key.name in variables:
-                    self._var_terms.setdefault(key.name, 0)
-                    self._var_terms[key.name] += coeffs[key]
-                elif key.name in self.model.parameters:
-                    # This is not a variable, may be a constant or parameter
-                    # add to the constant list
-                    self._const_term += coeffs[key]*key
+
+        # need to search the equation string manually
+        # sympy may reorder the terms
+        for term in expr.as_ordered_terms():
+            if term.is_number:
+                self._const_term += term
+            elif term.is_Symbol:
+                if term.name in variables:
+                    self._var_terms.setdefault(term.name, 0)
+                    self._var_terms[term.name] += 1
                 else:
-                    # may be a sympy constant, but not one we supplied
-                    self._const_term += coeffs[key]*key
-            elif key.is_Mul:
-                # Check the atoms to see if there are any variables,
-                # there should only be one
-                atoms = [k for k in key.atoms()
+                    # may be a parameter or sympy-supplied symbol
+                    self._const_term += term
+            elif term.is_Mul:
+                atoms = [k for k in term.atoms()
                          if not k.is_number and k.name in variables]
                 if len(atoms) > 1:
                     raise EquationError('not-independent',
                                         self.equation,
                                         'equations are not independent: ' +
-                                        str(key))
+                                        str(term))
                 elif len(atoms) == 0:
                     # This is a constant term
-                    self._const_term += coeffs[key]*key
+                    self._const_term += term
                 else:
-                    # This is a single variable.  Need to make sure that
-                    # this is not in a function.
-                    coeff_mul_parts = key.as_coeff_mul(atoms[0])
-                    if (len(coeff_mul_parts[1]) == 1 and
-                            atoms[0] == coeff_mul_parts[1][0]):
-                        var = coeff_mul_parts[1][0]
-                        self._var_terms.setdefault(var.name, 0)
-                        self._var_terms[var.name] += \
-                            coeffs[key] * coeff_mul_parts[0]
-                        # if (first_var is None and
-                        #         variables[var.name].equation is None):
-                        #     first_var = first_var or variables[var.name]
-                    else:
+                    # There is a single variable in here.
+                    var = None
+                    coeff = 1
+                    for arg in term.args:
+                        if arg.is_Symbol and arg.name in variables:
+                            var = arg
+                        else:
+                            coeff *= arg
+
+                    if var is None:
+                        # could not find a single variable, it may
+                        # be non-linear
                         raise EquationError('non-linear',
                                             self.equation,
                                             'linear expressions only: ' +
-                                            str(coeffs[key]*key))
+                                            str(term))
+                    self._var_terms.setdefault(var.name, 0)
+                    self._var_terms[var.name] += coeff
             else:
                 # This is most likely a function or operator of
                 # some kind that is unexpected
                 raise EquationError('unexpected-term',
                                     self.equation,
-                                    'unexpected term : ' + str(key))
+                                    'unexpected term : ' + str(term))
 
-        # go through the variables to see if one is being
-        # used here
         first_var = None
-        print '====' + self.equation
-        for var in variables.values():
-            if var.equation is None:
-                print "var: {0}  var.equation: {1}".format(var, var.equation)
-            else:
-                print "var: {0}  var.equation: {1}".format(var, var.equation.equation)
         for var in variables.values():
             if var.equation is None and var.name in self._var_terms:
                 var.equation = self

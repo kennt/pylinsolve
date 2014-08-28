@@ -12,14 +12,12 @@ import numpy
 from pylinsolve.equation import EquationError
 from pylinsolve.model import Model, DuplicateNameError, SolutionNotFoundError
 from pylinsolve.model import _run_solver
+from pylinsolve.utils import round_solution, is_close
 
 
 class TestModel(unittest.TestCase):
     """ Testcases for the model """
     # pylint: disable=missing-docstring,invalid-name
-
-    def setUp(self):
-        pass
 
     def test_model(self):
         """ Create an empty model class """
@@ -337,14 +335,17 @@ class TestModel(unittest.TestCase):
         self.assertEquals(10, b[1])
 
     # test the end condition
-    # test sparse matrix support
-    # test for changes to params while running
-    # some numerical tests to check for accuracy
-
     # error: series accessor with non-bound variable
 
     def test_full_model(self):
-        """ Test by implementing a model """
+        """ Test by implementing a model
+
+            This model is taken from the book
+                Monetary Economics, Godley and Lavoie, 2007
+            Chapter 3, The Simplest Model wtih Government Money
+            Model SIM
+        """
+        # pylint: disable=too-many-statements
         model = Model()
         model.set_var_default(0)
         model.vars('Y', 'YD', 'Ts', 'Td', 'Hs', 'Hh', 'Gs', 'Cs',
@@ -369,13 +370,49 @@ class TestModel(unittest.TestCase):
         model.add('Nd = Y/W')
 
         # setup initial parameter values
-        Gd = 1.0
-        W = 1.0
-        alpha1 = 0.4
-        alpha2 = 0.6
-        theta = 1.0
+        Gd.value = 20.
+        W.value = 1.0
+        alpha1.value = 0.6
+        alpha2.value = 0.4
+        theta.value = 0.2
 
-        model.solve()
-        print model.solutions[-1]
-        self.assertTrue(False)
+        model.solve(iterations=100, threshold=1e-3)
+        soln = round_solution(model.solutions[-1], decimals=1)
+        self.assertTrue(numpy.isclose(38.5, soln['Y']))
+        self.assertTrue(numpy.isclose(7.7, soln['Ts']))
+        self.assertTrue(numpy.isclose(30.8, soln['YD']))
+        self.assertTrue(numpy.isclose(18.5, soln['Cs']))
+        self.assertTrue(numpy.isclose(12.3, soln['Hs']))
+        self.assertTrue(numpy.isclose(12.3, soln['Hh']))
 
+        model.solve(iterations=100, threshold=1e-3)
+        soln = round_solution(model.solutions[-1], decimals=1)
+        self.assertTrue(numpy.isclose(47.9, soln['Y']))
+        self.assertTrue(numpy.isclose(9.6, soln['Ts']))
+        self.assertTrue(numpy.isclose(38.3, soln['YD']))
+        self.assertTrue(numpy.isclose(27.9, soln['Cs']))
+        self.assertTrue(numpy.isclose(22.7, soln['Hs']))
+        self.assertTrue(numpy.isclose(22.7, soln['Hh']))
+
+        # Now run until the solutions themselves converge
+        prev_soln = model.solutions[-1]
+        converges = False
+        for _ in xrange(100):
+            model.solve(iterations=100, threshold=1e-3)
+
+            # run until we converge
+            soln = model.solutions[-1]
+            if is_close(prev_soln, soln, atol=1e-3):
+                converges = True
+                break
+            prev_soln = soln
+
+        self.assertTrue(converges)
+        prev = round_solution(model.solutions[-2], decimals=1)
+        soln = round_solution(model.solutions[-1], decimals=1)
+        self.assertTrue(numpy.isclose(100, soln['Y']))
+        self.assertTrue(numpy.isclose(20, soln['Ts']))
+        self.assertTrue(numpy.isclose(80, soln['YD']))
+        self.assertTrue(numpy.isclose(80, soln['Cs']))
+        self.assertTrue(numpy.isclose(0, soln['Hs'] - prev['Hs']))
+        self.assertTrue(numpy.isclose(0, soln['Hh'] - prev['Hh']))
