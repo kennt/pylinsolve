@@ -10,6 +10,7 @@ import collections
 import numpy
 from sympy import sympify
 from sympy import Function
+from sympy.core.cache import clear_cache
 
 from pylinsolve.equation import Equation, EquationError
 from pylinsolve.parameter import Parameter, SeriesParameter
@@ -135,6 +136,16 @@ class Model(object):
     # pylint: disable=too-many-instance-attributes
 
     def __init__(self):
+
+        # Upon creating a new model, clear the cache
+        # Otherwise creating multiple models creates
+        # problems because sympy() will not reevaluate
+        # functions and the series accessor will not
+        # get created.  Because sympy keeps this cache
+        # around, will have to be careful if using these
+        # models in a multi-threaded context.
+        clear_cache()
+
         self.variables = collections.OrderedDict()
         self.parameters = collections.OrderedDict()
         self.equations = list()
