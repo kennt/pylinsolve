@@ -341,7 +341,7 @@ class TestModel(unittest.TestCase):
         """ Test by implementing a model
 
             This model is taken from the book
-                Monetary Economics, Godley and Lavoie, 2007
+                Monetary Economics 2ed, Godley and Lavoie, 2012
             Chapter 3, The Simplest Model wtih Government Money
             Model SIM
         """

@@ -103,8 +103,8 @@ def _run_solver(A, x, b,
         nextx = numpy.copy(curr)
 
         for i in xrange(A.shape[0]):
-            sub1 = numpy.dot(A[i, :i], nextx[:i])
-            sub2 = numpy.dot(A[i, i+1:], curr[i+1:])
+            sub1 = A[i, :i].dot(nextx[:i])
+            sub2 = A[i, i+1:].dot(curr[i+1:])
             nextx[i] = (nextx[i] +
                         relax * (((b[i] - sub1 - sub2) / A[i, i]) - nextx[i]))
 
@@ -256,7 +256,7 @@ class Model(object):
             latest[index] = variable.value
         return latest
 
-    def _prepare_solver(self):
+    def _prepare_solver(self, sparse=False):
         """ Prepares the solver for running.
             This will run through the equations, evaluating the
             parameters/variables and placing the cofficients into
@@ -277,7 +277,11 @@ class Model(object):
 
         nvars = len(self.variables)
         b = numpy.zeros((nvars,))
-        A = numpy.zeros((nvars, nvars))
+        if sparse:
+            from scipy.sparse import dok_matrix
+            A = dok_matrix((nvars, nvars))
+        else:
+            A = numpy.zeros((nvars, nvars))
         row = 0
         for variable in self.variables.values():
             for varname, term in variable.equation.variable_terms().items():
@@ -288,6 +292,8 @@ class Model(object):
                 variable.equation.constant_term()).evalf(subs=context)
             row += 1
 
+        if sparse:
+            A = A.tocsr()
         return (A, b)
 
     def _update_solutions(self, solution):
@@ -298,11 +304,13 @@ class Model(object):
         for variable in self.variables.values():
             index = self._var_map[variable]
             variable.value = solution[index]
-            new_soln[variable.name] = variable.value
+            new_soln[variable.name] = float(variable.value)
+        for param in self.parameters.values():
+            new_soln[param.name] = float(param.value)
         self.solutions.append(new_soln)
 
     def solve(self, iterations=10, until=None, threshold=0.001,
-              relaxation=1.0, decimals=None):
+              relaxation=1.0, decimals=None, sparse=False):
         """ Runs the solver.
 
             The solver will try to find a solution until one of the
@@ -331,7 +339,7 @@ class Model(object):
         x = self._latest_solution_vector()
         if len(self.solutions) == 0:
             self._update_solutions(x)
-        A, b = self._prepare_solver()
+        A, b = self._prepare_solver(sparse=sparse)
         solution = _run_solver(A, x, b,
                                max_iterations=iterations,
                                until=until,

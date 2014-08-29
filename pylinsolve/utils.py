@@ -42,3 +42,23 @@ def is_close(prev, curr, atol=1e-4, rtol=1e-4):
         if not numpy.isclose(prev[k], curr[k], atol=atol, rtol=rtol):
             return False
     return True
+
+
+def generate_html_table(header, adata):
+    """ Generates an html table for use within iPython """
+
+    def _add_row(rowtype, rowdata):
+        """ Adds HTML for a single row """
+        sdata = "<tr>"
+        for data in rowdata:
+            sdata += "<{0}>{1}</{0}>".format(rowtype, data)
+        sdata += "</tr>"
+        return sdata
+
+    shtml = "<table>"
+    if header is not None:
+        shtml += _add_row("th", header)
+    for row in adata:
+        shtml += _add_row("td", row)
+    shtml += "</table>"
+    return shtml
