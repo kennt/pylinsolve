@@ -38,6 +38,14 @@ class TestModel(unittest.TestCase):
         self.assertTrue('x' in model.variables)
         self.assertTrue('x' not in model.parameters)
 
+    def test_set_variables(self):
+        """ Test set_variables() """
+        model = Model()
+        var_x = model.var('x', default=-1)
+        self.assertEquals(-1, var_x.value)
+        model.set_variables({'x': 22})
+        self.assertEquals(22, var_x.value)
+
     def test_param(self):
         """ Test parameter creation """
         model = Model()
@@ -61,14 +69,14 @@ class TestModel(unittest.TestCase):
         var = model.var('test2')
         self.assertEquals(12, var.default)
 
-    def test_param_initial(self):
+    def test_param_default(self):
         """ Test the set_param_default """
         model = Model()
         param = model.param('test')
-        self.assertEquals(None, param.initial)
-        model.set_param_initial(122)
+        self.assertEquals(None, param.default)
+        model.set_param_default(122)
         param = model.param('test2')
-        self.assertEquals(122, param.initial)
+        self.assertEquals(122, param.default)
 
     def test_rule(self):
         """ Test creating rules """
@@ -290,8 +298,8 @@ class TestModel(unittest.TestCase):
         model = Model()
         model.var('x')
         model.var('y')
-        model.param('a', initial=1.2)
-        model.param('b', initial=-2.3)
+        model.param('a', default=1.2)
+        model.param('b', default=-2.3)
         model.add('x = a*y + 5')
         model.add('y = b*x + 10')
         A, b = model._prepare_solver()
@@ -307,8 +315,8 @@ class TestModel(unittest.TestCase):
         model = Model()
         model.var('x')
         model.var('y')
-        model.param('a', initial=1.2)
-        model.param('b', initial=-2.3)
+        model.param('a', default=1.2)
+        model.param('b', default=-2.3)
         model.add('x - x(-1) = a*y + 5')
         model.add('y = b*x + 10')
 
@@ -337,6 +345,15 @@ class TestModel(unittest.TestCase):
     # test the end condition
     # error: series accessor with non-bound variable
 
+    def test_evaluate(self):
+        """ Test arbitrary function evaluation """
+        model = Model()
+        model.var('x', default=1)
+        model.var('y', default=10)
+        model.param('a', default=.5)
+
+        self.assertEquals(11, model.evaluate('x+y'))
+
     def test_full_model(self):
         """ Test by implementing a model
 
@@ -350,7 +367,7 @@ class TestModel(unittest.TestCase):
         model.set_var_default(0)
         model.vars('Y', 'YD', 'Ts', 'Td', 'Hs', 'Hh', 'Gs', 'Cs',
                    'Cd', 'Ns', 'Nd')
-        model.set_param_initial(0)
+        model.set_param_default(0)
         Gd = model.param('Gd')
         W = model.param('W')
         alpha1 = model.param('alpha1')
@@ -369,7 +386,7 @@ class TestModel(unittest.TestCase):
         model.add('Y = Cs + Gs')
         model.add('Nd = Y/W')
 
-        # setup initial parameter values
+        # setup default parameter values
         Gd.value = 20.
         W.value = 1.0
         alpha1.value = 0.6

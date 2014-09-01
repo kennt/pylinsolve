@@ -11,6 +11,8 @@ import numpy
 from sympy import sympify
 from sympy import Function
 from sympy.core.cache import clear_cache
+from sympy.parsing.sympy_parser import parse_expr
+from sympy.parsing.sympy_parser import factorial_notation, auto_number
 
 from pylinsolve.equation import Equation, EquationError
 from pylinsolve.parameter import Parameter, SeriesParameter
@@ -59,10 +61,11 @@ class _SeriesAccessor(Function):
     @classmethod
     def eval(cls, *arg):
         """ Called from sympy to evaluate the function """
-        if not isinstance(arg[0], Variable):
+        if (not isinstance(arg[0], Variable) and
+                not isinstance(arg[0], Parameter)):
             raise EquationError('not-a-variable',
                                 str(arg[0]),
-                                'Cannot access a series for a non-variable')
+                                'Must be a variable or parameter')
 
         if arg[0].model is None:
             raise EquationError('no-model',
@@ -99,15 +102,17 @@ def _run_solver(A, x, b,
         debuglist.append(curr)
 
     soln = None
+    A_cache = [None] * A.shape[0]
+    for i in xrange(A.shape[0]):
+        A_cache[i] = A[i, :]
 
     for _ in xrange(max_iterations):
         nextx = numpy.copy(curr)
 
         for i in xrange(A.shape[0]):
-            sub1 = A[i, :i].dot(nextx[:i])
-            sub2 = A[i, i+1:].dot(curr[i+1:])
-            nextx[i] = (nextx[i] +
-                        relax * (((b[i] - sub1 - sub2) / A[i, i]) - nextx[i]))
+            nextx[i] = 0.0
+            sub = A_cache[i].dot(nextx)
+            nextx[i] = (curr[i] + relax * (((b[i] - sub) / A[i, i]) - curr[i]))
 
         if debuglist is not None:
             debuglist.append(nextx)
@@ -154,7 +159,7 @@ class Model(object):
         self._private_parameters = collections.OrderedDict()
         self._local_context = dict()
         self._var_default = None
-        self._param_initial = None
+        self._param_default = None
 
         # mapping of variable -> index
         # used for the matrix algebra solvers
@@ -184,7 +189,8 @@ class Model(object):
             Raises:
                 DuplicateNameError:
         """
-        default = default or self._var_default
+        if default is None:
+            default = self._var_default
         if name in self.variables or name in self.parameters:
             raise DuplicateNameError('Name already in use: ' + name)
         var = Variable(name, desc=desc, default=default)
@@ -210,19 +216,27 @@ class Model(object):
             varlist.append(self.var(arg))
         return varlist
 
-    def set_param_initial(self, initial):
-        """ Sets the default initial parameter value for all Parameters """
-        self._param_initial = initial
+    def set_variables(self, values):
+        """ Sets the values for the variables from default_values """
+        for var in self.variables.values():
+            if var.name in values:
+                var.value = values[var.name]
 
-    def param(self, name, desc=None, initial=None):
+    def set_param_default(self, default):
+        """ Sets the default initial parameter value for all Parameters """
+        self._param_default = default
+
+    def param(self, name, desc=None, default=None):
         """ Creates a parameter for use within the model.
 
             Returns: a Parameter
         """
-        initial = initial or self._param_initial
+        if default is None:
+            default = self._param_default
         if name in self.variables or name in self.parameters:
             raise DuplicateNameError('Name already in use: ' + name)
-        param = Parameter(name, desc=desc, initial=initial)
+        param = Parameter(name, desc=desc, default=default)
+        param.model = self
         self.parameters[name] = param
         _add_param_to_context(self._local_context, param)
         return param
@@ -407,13 +421,14 @@ class Model(object):
         else:
             iter_name = "_{0}_{1}".format(str(variable), iter_value)
 
-        param = SeriesParameter(iter_name,
-                                variable=variable,
-                                iteration=iter_value,
-                                initial=variable.default)
-        self._private_parameters[iter_name] = param
-        _add_param_to_context(self._local_context, param)
-        return param
+        if iter_name not in self._private_parameters:
+            param = SeriesParameter(iter_name,
+                                    variable=variable,
+                                    iteration=iter_value,
+                                    default=variable.default)
+            self._private_parameters[iter_name] = param
+            _add_param_to_context(self._local_context, param)
+        return self._private_parameters[iter_name]
 
     def get_value(self, variable, iteration):
         """ Returns the value of the variable for the given
@@ -434,3 +449,26 @@ class Model(object):
                 IndexError exception will be raised.
         """
         return self.solutions[iteration][variable.name]
+
+    def evaluate(self, equation):
+        """ Evaluates an arbitrary function using the current values
+            of the variables.
+
+            Parmeters:
+                eqn:
+
+            Returns:
+                The value of the expression.
+        """
+        context = dict()
+        for variable in self.variables.values():
+            context[variable] = variable.value
+        for param in self.parameters.values():
+            context[param] = param.value
+        for param in self._private_parameters.values():
+            context[param] = param.value
+
+        expr = parse_expr(equation,
+                          self._local_context,
+                          transformations=(factorial_notation, auto_number))
+        return expr.evalf(subs=context)

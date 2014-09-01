@@ -35,7 +35,7 @@ def _rewrite(variables, parameters, equation):
         expression.
         This will convert:
             This is to allow easier access to the solution series data.
-            'x(-t)' -> '_series_acc(x, _iter-t)'
+            'x(-t)' -> '_f(x, _iter-t)'
             We translate this into a function so that we can evaluate
             the parameter symbolically before the call.
 
@@ -52,14 +52,10 @@ def _rewrite(variables, parameters, equation):
                               "_series_acc({0},".format(var),
                               new_equation)
 
-    # Check for parameters that are being used like the variable
-    # series accessor functions.
     for param in parameters.keys():
-        if re.search(r"\b{0}\(".format(param), new_equation):
-            raise EquationError('parameter-function',
-                                equation,
-                                'Parameters cannot access previous values: ' +
-                                param)
+        new_equation = re.sub(r"\b{0}\(".format(param),
+                              "_series_acc({0},".format(param),
+                              new_equation)
 
     if '=' in new_equation:
         parts = new_equation.split('=')

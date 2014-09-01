@@ -20,21 +20,22 @@ class Parameter(Symbol):
             symbol:
             name:
             desc:
-            initial:
+            default:
             value:
     """
     # pylint: disable=too-many-ancestors
 
-    def __init__(self, name, desc=None, initial=None):
+    def __init__(self, name, desc=None, default=None):
         if name in Variable.ILLEGAL_NAMES:
             raise InvalidNameError(name, 'Name already used by sympy')
 
         super(Parameter, self).__init__(name)
         self.name = name
         self.desc = desc
-        self.initial = initial
+        self.default = default
+        self.model = None
 
-        self._value = initial
+        self._value = default
 
     @property
     def value(self):
@@ -46,6 +47,13 @@ class Parameter(Symbol):
         """ Setter accessor for parameter value """
         self._value = val
 
+    @classmethod
+    def series_name(cls, name):
+        """ Returns the internal method to access the series data for
+            this variable name.
+        """
+        return "__{0}_".format(name)
+
 
 class SeriesParameter(Parameter):
     """ A parameter that can access the previous solution values.
@@ -54,12 +62,12 @@ class SeriesParameter(Parameter):
             name:
             variable:
             iteration:
-            initial:
+            default:
     """
     # pylint: disable=too-many-ancestors
 
-    def __init__(self, name, variable=None, iteration=None, initial=None):
-        super(SeriesParameter, self).__init__(name, initial=initial)
+    def __init__(self, name, variable=None, iteration=None, default=None):
+        super(SeriesParameter, self).__init__(name, default=default)
         if variable is None or iteration is None:
             raise ValueError('variable and iteration cannot be none')
         self.variable = variable

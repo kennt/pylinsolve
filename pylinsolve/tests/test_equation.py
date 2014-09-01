@@ -56,7 +56,9 @@ class TestEquation(unittest.TestCase):
         self.model.parameters['a'] = Parameter('a')
         self.model.parameters['b'] = Parameter('b')
         self.a = self.model.parameters['a']
+        self.a.model = self.model
         self.b = self.model.parameters['b']
+        self.b.model = self.model
 
         for var in self.model.variables.values():
             _add_var_to_context(self.model._local_context, var)
@@ -87,9 +89,11 @@ class TestEquation(unittest.TestCase):
         self.assertEquals('z-(_series_acc(x,10))',
                           _rewrite(variables, {}, 'z=x(10)'))
 
-        with self.assertRaises(EquationError) as context:
-            _rewrite(variables, {'a': Parameter('a')}, 'a(-1)')
-        self.assertEquals('parameter-function', context.exception.errorid)
+        parameters = dict()
+        parameters['a'] = Parameter('a')
+        parameters['b'] = Parameter('b')
+        self.assertEquals('_series_acc(a,-1)',
+                          _rewrite({}, parameters, 'a(-1)'))
 
     def test_parse_one_variable(self):
         """ Test one-variable equation. """
@@ -302,12 +306,6 @@ class TestEquation(unittest.TestCase):
         self.assertEquals('-_x__1',
                           str(eqn.constant_term()))
 
-        with self.assertRaises(EquationError) as context:
-            eqn = Equation('x - a(-1)')
-            eqn.model = self.model
-            eqn.parse(self.model._local_context)
-        self.assertEquals('parameter-function', context.exception.errorid)
-
         # Test the evaluation of the accessor, for this test case
         # it always evaluates to -42
         with self.assertRaises(EquationError) as context:
@@ -316,6 +314,14 @@ class TestEquation(unittest.TestCase):
             eqn.model = self.model
             eqn.parse(self.model._local_context)
         self.assertEquals('no-variable', context.exception.errorid)
+
+    def test_parameter_series_accessor(self):
+        eqn = Equation('x - a(-1)')
+        eqn.model = self.model
+        eqn.parse(self.model._local_context)
+        self.assertEquals(1, len(eqn.variable_terms()))
+        self.assertEquals('-_a__1',
+                          str(eqn.constant_term()))
 
     def test_mixed_equations(self):
         """ Test mixed parameter/variable equations """
