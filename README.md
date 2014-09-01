@@ -25,8 +25,8 @@ pip install pylinsolve
 4. Solve
 
 ### Simple example
-This example is taken from the book "Monetary Economics" by
-Lavoie and Godley, 2007.
+This example is taken Chapter 3 of the book "Monetary Economics 2e" by
+Lavoie and Godley, 2012.
 ```python
 from pylinsolve.model import Model
 from pylinsolve.utils import round_solution,is_close
@@ -52,7 +52,7 @@ model.var('YD', desc='Disposable income of households')
 model.param('Gd', desc='Government goods, demand', initial=20)
 model.param('W', desc='Wage rate', initial=1)
 model.param('alpha1', desc='Propensity to consume out of income', initial=0.6)
-model.param('alpha2', desc='Propensity to consume o of wealth', initial=0.4)
+model.param('alpha2', desc='Propensity to consume out of wealth', initial=0.4)
 model.param('theta', desc='Tax rate', initial=0.2)
 
 model.add('Cs = Cd')
@@ -69,7 +69,7 @@ model.add('Nd = Y/W')
 
 # solve until convergence
 for _ in xrange(100):
-    model.solve(iterations=100, threshold=1e-3)
+    model.solve(iterations=100, threshold=1e-4)
 
     prev_soln = model.solutions[-2]
     soln = model.solutions[-1]
@@ -87,7 +87,9 @@ For more examples, please see the associated iPython notebooks.
 
 ## To do list
 ### Data import features
-### Sparse matrix support
+### Other methods for solving
+### Test with larger models
+
 
 
 

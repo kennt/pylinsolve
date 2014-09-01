@@ -354,6 +354,17 @@ class TestModel(unittest.TestCase):
 
         self.assertEquals(11, model.evaluate('x+y'))
 
+    def test_evaluate_series_access(self):
+        """ Test evaluation with series accessor """
+        model = Model()
+        model.var('x', default=1)
+        model.var('y', default=10)
+        model.param('a', default=.5)
+        model.solutions = [{'x': 2, 'y': 11, 'a': 60}]
+
+        self.assertEquals(11, model.evaluate('y(-1)'))
+        self.assertEquals(73, model.evaluate('x(-1) + y(-1) + a(-1)'))
+
     def test_full_model(self):
         """ Test by implementing a model
 

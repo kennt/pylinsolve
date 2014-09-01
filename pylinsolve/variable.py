@@ -46,10 +46,3 @@ class Variable(Symbol):
         self.equation = None
 
         self.value = default
-
-    @classmethod
-    def series_name(cls, name):
-        """ Returns the internal method to access the series data for
-            this variable name.
-        """
-        return "__{0}_".format(name)

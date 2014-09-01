@@ -14,7 +14,7 @@ from sympy.core.cache import clear_cache
 from sympy.parsing.sympy_parser import parse_expr
 from sympy.parsing.sympy_parser import factorial_notation, auto_number
 
-from pylinsolve.equation import Equation, EquationError
+from pylinsolve.equation import Equation, EquationError, _rewrite
 from pylinsolve.parameter import Parameter, SeriesParameter
 from pylinsolve.variable import Variable
 
@@ -460,6 +460,11 @@ class Model(object):
             Returns:
                 The value of the expression.
         """
+        equation = _rewrite(self.variables, self.parameters, equation)
+        expr = parse_expr(equation,
+                          self._local_context,
+                          transformations=(factorial_notation, auto_number))
+
         context = dict()
         for variable in self.variables.values():
             context[variable] = variable.value
@@ -467,8 +472,4 @@ class Model(object):
             context[param] = param.value
         for param in self._private_parameters.values():
             context[param] = param.value
-
-        expr = parse_expr(equation,
-                          self._local_context,
-                          transformations=(factorial_notation, auto_number))
         return expr.evalf(subs=context)
