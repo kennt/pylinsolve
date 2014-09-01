@@ -14,9 +14,9 @@ models based on Stock Flow Consistent (SFC) models.
 
 ## How to install
 
-'''
+```python
 pip install pylinsolve
-'''
+```
 
 ## How to use
 1. Define the variables used in the model.
@@ -27,7 +27,7 @@ pip install pylinsolve
 ### Simple example
 This example is taken from the book "Monetary Economics" by
 Lavoie and Godley, 2007.
-'''python
+```python
 from pylinsolve.model import Model
 from pylinsolve.utils import round_solution,is_close
 
@@ -78,7 +78,7 @@ for _ in xrange(100):
 
 print round_solution(model.solutions[-1], decimals=1)
 
-'''
+```
 
 ### More complex examples
 For more examples, please see the associated iPython notebooks.

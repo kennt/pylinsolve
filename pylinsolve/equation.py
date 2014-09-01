@@ -35,7 +35,7 @@ def _rewrite(variables, parameters, equation):
         expression.
         This will convert:
             This is to allow easier access to the solution series data.
-            'x(-t)' -> '_f(x, _iter-t)'
+            'x(-t)' -> '_series_acc(x, _iter-t)'
             We translate this into a function so that we can evaluate
             the parameter symbolically before the call.
 
