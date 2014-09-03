@@ -99,7 +99,7 @@ def _run_solver(variables, context,
     if debuglist is not None:
         debuglist.append(context)
 
-    current = [x for x in context.values()]
+    current = [float(x) for x in context.values()]
     soln = None
 
     for _ in xrange(max_iterations):
@@ -264,11 +264,11 @@ class Model(object):
         context = collections.OrderedDict()
 
         for variable in self.variables.values():
-            context[variable] = variable.value
+            context[variable] = float(variable.value)
         for param in self.parameters.values():
-            context[param] = param.value
+            context[param] = float(param.value)
         for param in self._private_parameters.values():
-            context[param] = param.value
+            context[param] = float(param.value)
         return context
 
     def _update_solutions(self, solution):

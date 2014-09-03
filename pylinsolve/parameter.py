@@ -25,7 +25,7 @@ class Parameter(Symbol):
     """
     # pylint: disable=too-many-ancestors
 
-    def __init__(self, name, desc=None, default=None):
+    def __init__(self, name, desc=None, default=0):
         if name in Variable.ILLEGAL_NAMES:
             raise InvalidNameError(name, 'Name already used by sympy')
 
@@ -78,4 +78,4 @@ class SeriesParameter(Parameter):
             return self.variable.model.get_value(
                 self.variable, self.iteration)
         except IndexError:
-            return self.variable.default
+            return self.variable.value or self.variable.default
