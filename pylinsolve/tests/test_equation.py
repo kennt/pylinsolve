@@ -13,7 +13,7 @@ from sympy import Symbol
 
 from pylinsolve.equation import Equation, _rewrite, EquationError
 from pylinsolve.model import _add_var_to_context, _add_param_to_context
-from pylinsolve.model import _add_series_accessor
+from pylinsolve.model import _add_functions
 from pylinsolve.parameter import Parameter
 from pylinsolve.variable import Variable
 
@@ -64,7 +64,7 @@ class TestEquation(unittest.TestCase):
             _add_var_to_context(self.model._local_context, var)
         for param in self.model.parameters.values():
             _add_param_to_context(self.model._local_context, param)
-        _add_series_accessor(self.model._local_context)
+        _add_functions(self.model._local_context)
 
     def test_equation_init(self):
         """ Test if we can construct an instance """
@@ -138,6 +138,18 @@ class TestEquation(unittest.TestCase):
         with self.assertRaises(EquationError) as context:
             eqn.parse(self.model._local_context)
         self.assertEquals('lhs-variables', context.exception.errorid)
+
+    def test_non_linear_left_hand_side(self):
+        """ Test for non-linearity in definition """
+        with self.assertRaises(EquationError) as context:
+            eqn = Equation(self.model, 'x**2 = y')
+            eqn.parse(self.model._local_context)
+        self.assertEquals('non-linear', context.exception.errorid)
+
+        with self.assertRaises(EquationError) as context:
+            eqn = Equation(self.model, 'log(x) = y')
+            eqn.parse(self.model._local_context)
+        self.assertEquals('non-linear', context.exception.errorid)
 
     def test_variable_already_defined(self):
         """ Test to see if a variable has two equations """

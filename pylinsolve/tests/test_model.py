@@ -229,6 +229,14 @@ class TestModel(unittest.TestCase):
         self.assertEquals(11, model.evaluate('y(-1)'))
         self.assertEquals(73, model.evaluate('x(-1) + y(-1) + a(-1)'))
 
+    def test_if_true(self):
+        """ Test the if_true builtin function """
+        model = Model()
+        model.var('x', default=12)
+        model.var('y', default=3131)
+        self.assertEquals(0, model.evaluate('if_true(x > 1000)'))
+        self.assertEquals(1, model.evaluate('if_true(y > 1000)'))
+
     def test_model_failure(self):
         """ Test for divergence """
         model = Model()

@@ -56,6 +56,16 @@ def _rewrite(variables, parameters, equation):
     return new_equation
 
 
+def _is_linear(expr, var):
+    """ Returns true if the equation is linear in the variable.
+        False otherwise
+    """
+    poly = expr.as_poly(var)
+    if poly:
+        return poly.degree() == 1
+    return False
+
+
 class Equation(object):
     """ This class contains an 'equation'.
 
@@ -126,6 +136,12 @@ class Equation(object):
 
         # Determine how to isolate the variable by addition/division
         variable, add_terms, mul_terms = self._isolate_variable(lhs)
+
+        if not _is_linear(lhs, variable):
+            raise EquationError('non-linear',
+                                self.equation,
+                                'the main variable is not linear')
+
         if variable is not None and variable.equation is not None:
             raise EquationError('var-eqn-exists',
                                 self.equation,

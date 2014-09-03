@@ -8,7 +8,7 @@
 import collections
 
 from sympy import sympify
-from sympy import Function
+from sympy import Symbol, Function
 from sympy.core.cache import clear_cache
 from sympy.parsing.sympy_parser import parse_expr
 from sympy.parsing.sympy_parser import factorial_notation, auto_number
@@ -75,10 +75,41 @@ class _SeriesAccessor(Function):
         return arg[0].model.get_at(arg[0], arg[1])
 
 
-def _add_series_accessor(context):
-    """ Adds the function to access values from the previous iteration.
+class _IfTrueFunction(Function):
+    """ Implements a sympy function to implement a step function.
+        This will return 1 if the argument is true, 0 otherwise.
     """
-    context['_series_acc'] = _SeriesAccessor
+    nargs = 1
+
+    @classmethod
+    def eval(cls, *args):
+        """ Called from sympy to evaluate the function """
+        if args[0]:
+            return 1
+        else:
+            return 0
+
+
+class _IfTrueNoEvalFunction(Function):
+    """ Stops the evaluation of the function in sympy. """
+    @classmethod
+    def eval(cls, *args):
+        """ Called during evaluation, but this one does nothing """
+        pass
+
+# Functions defined and used at parse time
+_PARSE_FUNCS = [('_series_acc', _SeriesAccessor),
+                ('if_true', _IfTrueNoEvalFunction)]
+
+# Functions used at runtime
+_RT_FUNCS = [('if_true', _IfTrueFunction, _IfTrueNoEvalFunction), ]
+
+
+def _add_functions(context):
+    """ Adds our builtin functions.
+    """
+    for func in _PARSE_FUNCS:
+        context[func[0]] = func[1]
 
 
 def _run_solver(variables, context,
@@ -99,7 +130,9 @@ def _run_solver(variables, context,
     if debuglist is not None:
         debuglist.append(context)
 
-    current = [float(x) for x in context.values()]
+    current = ([func[1] for func in _RT_FUNCS] +
+               [float(x) for x in context.values()])
+    begin = len(_RT_FUNCS)
     soln = None
 
     for _ in xrange(max_iterations):
@@ -110,12 +143,12 @@ def _run_solver(variables, context,
                 float(variable.equation.func(*next_soln))
 
         if debuglist is not None:
-            debuglist.append(next_soln.copy())
+            debuglist.append({v: next_soln[v._index] for v in context.keys()})
 
-        if testf(current, next_soln):
-            soln = {var: next_soln[var._index] for var in context.keys()}
+        if testf(current[begin:], next_soln[begin:]):
+            soln = {v: next_soln[v._index] for v in context.keys()}
             break
-        current = list(next_soln)
+        current = next_soln
 
     if soln is None:
         raise SolutionNotFoundError()
@@ -154,7 +187,7 @@ class Model(object):
 
         self._need_function_update = True
 
-        _add_series_accessor(self._local_context)
+        _add_functions(self._local_context)
 
     def set_var_default(self, default):
         """ Sets the general default value for all variables. """
@@ -285,8 +318,8 @@ class Model(object):
         """ Given the solution, update the variables and the
             solutions list.
         """
-        for variable in self.variables.values():
-            variable.value = solution[variable.name]
+        self.set_variables(solution, ignore_errors=True)
+        self.set_parameters(solution, ignore_errors=True)
         self.solutions.append(solution.copy())
 
     def solve(self, iterations=10, until=None, threshold=0.001):
@@ -321,12 +354,14 @@ class Model(object):
         # do we need to update the function lambdas?  This is needed
         # if the number of variables/parameters changes.
         if self._need_function_update:
-            arg_list = [x for x in current.keys()]
+            arg_list = [f[0] for f in _RT_FUNCS] + [x for x in current.keys()]
             for i in xrange(len(arg_list)):
-                arg_list[i]._index = i
+                if isinstance(arg_list[i], Symbol):
+                    arg_list[i]._index = i
 
             for var in self.variables.values():
                 var.equation.func = lambdify(arg_list, var.equation.expr)
+
             self._need_function_update = False
 
         solution = _run_solver(self.variables,
@@ -335,7 +370,6 @@ class Model(object):
                                until=until,
                                threshold=threshold)
         soln = {k.name: v for k, v in solution.items()}
-        self.set_variables(soln, ignore_errors=True)
         self._update_solutions(soln)
 
     def get_at(self, variable, iteration):
@@ -427,4 +461,10 @@ class Model(object):
         expr = parse_expr(equation,
                           self._local_context,
                           transformations=(factorial_notation, auto_number))
-        return expr.evalf(subs=self._get_context())
+        expr = sympify(expr).subs(self._get_context())
+        for func in _RT_FUNCS:
+            expr = expr.replace(func[2], func[1])
+            if sympify(expr).is_number:
+                break
+
+        return float(expr)
