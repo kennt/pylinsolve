@@ -201,11 +201,14 @@ class Model(object):
             varlist.append(self.var(arg))
         return varlist
 
-    def set_variables(self, values):
+    def set_variables(self, values, ignore_errors=False):
         """ Sets the values for the variables from default_values """
-        for var in self.variables.values():
-            if var.name in values:
-                var.value = values[var.name]
+        for name, value in values.items():
+            if name in self.variables:
+                self.variables[name].value = value
+            elif not ignore_errors:
+                raise ValueError(
+                    "cannot find {0} in the list of variables".format(name))
 
     def set_param_default(self, default):
         """ Sets the default initial parameter value for all Parameters """
@@ -227,8 +230,15 @@ class Model(object):
         self._need_function_update = True
         return param
 
-    def set_parameters(self, values):
+    def set_parameters(self, values, ignore_errors=False):
         """ Sets the values for the paramters """
+        for name, value in values.items():
+            if name in self.parameters:
+                self.parameters[name].value = value
+            elif not ignore_errors:
+                raise ValueError(
+                    "cannot find {0} in the list of parameters".format(name))
+
         for param in self.parameters.values():
             if param.name in values:
                 param.value = values[param.name]
@@ -325,7 +335,7 @@ class Model(object):
                                until=until,
                                threshold=threshold)
         soln = {k.name: v for k, v in solution.items()}
-        self.set_variables(soln)
+        self.set_variables(soln, ignore_errors=True)
         self._update_solutions(soln)
 
     def get_at(self, variable, iteration):

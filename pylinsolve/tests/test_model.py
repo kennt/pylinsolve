@@ -45,6 +45,9 @@ class TestModel(unittest.TestCase):
         model.set_variables({'x': 22})
         self.assertEquals(22, var_x.value)
 
+        with self.assertRaises(ValueError):
+            model.set_variables({'zz': -1})
+
     def test_param(self):
         """ Test parameter creation """
         model = Model()
@@ -58,6 +61,17 @@ class TestModel(unittest.TestCase):
 
         self.assertTrue('x' not in model.variables)
         self.assertTrue('x' in model.parameters)
+
+    def test_set_parameters(self):
+        """ Test set_parameters() """
+        model = Model()
+        param_a = model.param('a', default=-1)
+        self.assertEquals(-1, param_a.value)
+        model.set_parameters({'a': 22})
+        self.assertEquals(22, param_a.value)
+
+        with self.assertRaises(ValueError):
+            model.set_parameters({'zz': -1})
 
     def test_set_var_default(self):
         """ Test the set_var_default """
