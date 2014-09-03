@@ -20,14 +20,13 @@ class Variable(Symbol):
             I, oo, nan, pi, E
 
         Attributes:
-            name:
-            desc:
-            default:
-            model:
-            value:
-            equation: This is the equation that is used to specify
-                this variable.  In Linear Algebra this is the row
-                used to specify the A(i,i) term.
+            name: The symbolic name of the variable.
+            desc: A long form description of the variable.
+            default: The default value (the initial value of the var)
+            model: The model that this variable belongs to.
+            value: The actual (current) value of the var.
+            equation: This is the equation used to evaluate the
+                variable.
     """
     # pylint: disable=too-many-ancestors
 
@@ -44,5 +43,6 @@ class Variable(Symbol):
         self.default = default
         self.model = None
         self.equation = None
-
         self.value = default
+
+        self._index = None

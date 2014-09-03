@@ -11,7 +11,6 @@ import numpy
 
 from pylinsolve.equation import EquationError
 from pylinsolve.model import Model, DuplicateNameError, SolutionNotFoundError
-from pylinsolve.model import _run_solver
 from pylinsolve.utils import round_solution, is_close
 
 
@@ -87,32 +86,18 @@ class TestModel(unittest.TestCase):
 
         self.assertEquals(2, len(model.variables))
         self.assertEquals(0, len(model.parameters))
-        self.assertEquals(1, len(model.equations))
-
-        eqn = model.equations[0]
-        self.assertEquals(2, len(eqn.variable_terms()))
-        self.assertTrue('x' in eqn.variable_terms())
-        self.assertEquals(1, eqn.variable_terms()['x'])
-        self.assertTrue('y' in eqn.variable_terms())
-        self.assertEquals(-1, eqn.variable_terms()['y'])
+        self.assertIsNotNone(model.variables['x'].equation)
+        self.assertIsNone(model.variables['y'].equation)
 
     def test_rule_with_coefficients(self):
         """ Test creating rules with simple coefficents """
         model = Model()
         model.var('x')
         model.var('y')
-        model.add('2*x + 3*y')
+        model.add('2*x = 3*y')
 
         self.assertEquals(2, len(model.variables))
         self.assertEquals(0, len(model.parameters))
-        self.assertEquals(1, len(model.equations))
-
-        eqn = model.equations[0]
-        self.assertEquals(2, len(eqn.variable_terms()))
-        self.assertTrue('x' in eqn.variable_terms())
-        self.assertEquals(2, eqn.variable_terms()['x'])
-        self.assertTrue('y' in eqn.variable_terms())
-        self.assertEquals(3, eqn.variable_terms()['y'])
 
     def test_series_get_at(self):
         """ Test the series accessor creation, get_at() """
@@ -155,47 +140,6 @@ class TestModel(unittest.TestCase):
         with self.assertRaises(EquationError):
             model.get_at(varx, vary)
 
-    def test_run_solver(self):
-        """ Simple tests to see if the solver works """
-        A = numpy.array([[10., -1., 2., 0.],
-                         [-1., 11., -1., 3.],
-                         [2., -1., 10., -1.],
-                         [0., 3., -1., 8.]])
-        b = numpy.array([6., 25., -11., 15.])
-        x = numpy.array([1., 1., 1., 1.])
-
-        debuglist = list()
-        soln = _run_solver(A, x, b, threshold=1e-4, debuglist=debuglist)
-        self.assertIsNotNone(soln)
-        self.assertTrue(numpy.isclose(1., soln[0]))
-        self.assertTrue(numpy.isclose(2., soln[1]))
-        self.assertTrue(numpy.isclose(-1., soln[2]))
-        self.assertTrue(numpy.isclose(1., soln[3]))
-
-        A = numpy.array([[16., 3.],
-                         [7., -11.]])
-        b = numpy.array([11., 13.])
-        x = numpy.array([1., 1.])
-        debuglist = list()
-        soln = _run_solver(A, x, b, threshold=1e-5, debuglist=debuglist)
-
-        # Need to round the values up to 4 decimal places
-        soln = numpy.around(soln, decimals=4)
-
-        self.assertIsNotNone(soln)
-        self.assertTrue(numpy.isclose(0.8122, soln[0]))
-        self.assertTrue(numpy.isclose(-0.6650, soln[1]))
-
-    def test_run_solver_failure(self):
-        """ Test a case where the algorithm diverges """
-        A = numpy.array([[2., 3.],
-                         [5., 7.]])
-        b = numpy.array([11., 13.])
-        x = numpy.array([1.1, 2.3])
-        debuglist = list()
-        with self.assertRaises(SolutionNotFoundError):
-            _run_solver(A, x, b, threshold=1e-4, debuglist=debuglist)
-
     def test_equation_validate(self):
         """ Test the error checking within the solve() function """
         model = Model()
@@ -204,58 +148,13 @@ class TestModel(unittest.TestCase):
             model.solve()
         self.assertEquals('under-specified', context.exception.errorid)
 
-    def test_latest_solution_vector(self):
-        """ Test that we grab the latest solution vector correctly """
-        model = Model()
-        varx = model.var('x', default=22)
-        vary = model.var('y', default=33)
-        varz = model.var('z', default=1024)
-        self.assertEquals(22, varx.value)
-        self.assertEquals(33, vary.value)
-        self.assertEquals(1024, varz.value)
-        soln = model._latest_solution_vector()
-
-        # the solution vector follows the order the variables
-        # were added
-        self.assertEquals(22, soln[0])
-        self.assertEquals(33, soln[1])
-        self.assertEquals(1024, soln[2])
-
-    def test_prepare_solver(self):
-        """ Test the _prepare_solver() function """
-        model = Model()
-        model.var('x')
-        model.var('y')
-        model.add('x - 3*y = 5')
-        model.add('2*x + y = 22')
-        A, b = model._prepare_solver()
-        self.assertEquals(1, A[0, 0])
-        self.assertEquals(-3, A[0, 1])
-        self.assertEquals(2, A[1, 0])
-        self.assertEquals(1, A[1, 1])
-        self.assertEquals(5, b[0])
-        self.assertEquals(22, b[1])
-
-        model = Model()
-        model.var('x')
-        model.var('y')
-        model.add('x = 3*y + 5')
-        model.add('y = 2*x - 22')
-        A, b = model._prepare_solver()
-        self.assertEquals(1, A[0, 0])
-        self.assertEquals(-3, A[0, 1])
-        self.assertEquals(-2, A[1, 0])
-        self.assertEquals(1, A[1, 1])
-        self.assertEquals(5, b[0])
-        self.assertEquals(-22, b[1])
-
     def test_update_solutions(self):
         """ Test _update_solutions function """
         model = Model()
         varx = model.var('x')
         vary = model.var('y')
 
-        model._update_solutions(numpy.array([1.1, 2.2]))
+        model._update_solutions({'x': 1.1, 'y': 2.2})
         self.assertEquals(1, len(model.solutions))
         self.assertEquals(1.1, varx.value)
         self.assertTrue('x' in model.solutions[0])
@@ -264,7 +163,7 @@ class TestModel(unittest.TestCase):
         self.assertTrue('y' in model.solutions[0])
         self.assertEquals(2.2, model.solutions[0]['y'])
 
-        model._update_solutions(numpy.array([3.3, 4.4]))
+        model._update_solutions({'x': 3.3, 'y': 4.4})
         self.assertEquals(2, len(model.solutions))
         self.assertEquals(3.3, varx.value)
         self.assertTrue('x' in model.solutions[1])
@@ -279,8 +178,8 @@ class TestModel(unittest.TestCase):
         varx = model.var('x', default=-1)
         vary = model.var('y')
 
-        model._update_solutions(numpy.array([1.1, 2.2]))
-        model._update_solutions(numpy.array([3.3, 4.4]))
+        model._update_solutions({'x': 1.1, 'y': 2.2})
+        model._update_solutions({'x': 3.3, 'y': 4.4})
 
         self.assertEquals(1.1, model.get_value(varx, 0))
         self.assertEquals(1.1, model.get_value(varx, -2))
@@ -292,55 +191,6 @@ class TestModel(unittest.TestCase):
 
         with self.assertRaises(IndexError):
             self.assertEquals(-1, model.get_value(varx, 1000))
-
-    def test_parameter_eval(self):
-        """ Test evaluation of parameters before solving """
-        model = Model()
-        model.var('x')
-        model.var('y')
-        model.param('a', default=1.2)
-        model.param('b', default=-2.3)
-        model.add('x = a*y + 5')
-        model.add('y = b*x + 10')
-        A, b = model._prepare_solver()
-        self.assertEquals(1, A[0, 0])
-        self.assertEquals(-1.2, A[0, 1])
-        self.assertEquals(2.3, A[1, 0])
-        self.assertEquals(1, A[1, 1])
-        self.assertEquals(5, b[0])
-        self.assertEquals(10, b[1])
-
-    def test_series_parameter_eval(self):
-        """ Test evaluation of series parameter values before solving """
-        model = Model()
-        model.var('x')
-        model.var('y')
-        model.param('a', default=1.2)
-        model.param('b', default=-2.3)
-        model.add('x - x(-1) = a*y + 5')
-        model.add('y = b*x + 10')
-
-        # add some dummy solutions
-        model._update_solutions(numpy.array([1.1, 2.2]))
-        model._update_solutions(numpy.array([3.3, 4.4]))
-
-        A, b = model._prepare_solver()
-        self.assertEquals(1, A[0, 0])
-        self.assertEquals(-1.2, A[0, 1])
-        self.assertEquals(2.3, A[1, 0])
-        self.assertEquals(1, A[1, 1])
-        self.assertEquals(8.3, b[0])
-        self.assertEquals(10, b[1])
-
-        model._update_solutions(numpy.array([1., 2]))
-
-        A, b = model._prepare_solver()
-        self.assertEquals(1, A[0, 0])
-        self.assertEquals(-1.2, A[0, 1])
-        self.assertEquals(2.3, A[1, 0])
-        self.assertEquals(1, A[1, 1])
-        self.assertEquals(6., b[0])
-        self.assertEquals(10, b[1])
 
     # test the end condition
     # error: series accessor with non-bound variable
@@ -364,6 +214,17 @@ class TestModel(unittest.TestCase):
 
         self.assertEquals(11, model.evaluate('y(-1)'))
         self.assertEquals(73, model.evaluate('x(-1) + y(-1) + a(-1)'))
+
+    def test_model_failure(self):
+        """ Test for divergence """
+        model = Model()
+        model.var('x', default=1.1)
+        model.var('y', default=2.3)
+        model.add('2*x = 11 - 3*y')
+        model.add('7*y = 13 - 5*x')
+
+        with self.assertRaises(SolutionNotFoundError):
+            model.solve(iterations=100, threshold=1e-4)
 
     def test_full_model(self):
         """ Test by implementing a model
@@ -404,7 +265,7 @@ class TestModel(unittest.TestCase):
         alpha2.value = 0.4
         theta.value = 0.2
 
-        model.solve(iterations=100, threshold=1e-3)
+        model.solve(iterations=200, threshold=1e-3)
         soln = round_solution(model.solutions[-1], decimals=1)
         self.assertTrue(numpy.isclose(38.5, soln['Y']))
         self.assertTrue(numpy.isclose(7.7, soln['Ts']))
@@ -413,7 +274,7 @@ class TestModel(unittest.TestCase):
         self.assertTrue(numpy.isclose(12.3, soln['Hs']))
         self.assertTrue(numpy.isclose(12.3, soln['Hh']))
 
-        model.solve(iterations=100, threshold=1e-3)
+        model.solve(iterations=200, threshold=1e-3)
         soln = round_solution(model.solutions[-1], decimals=1)
         self.assertTrue(numpy.isclose(47.9, soln['Y']))
         self.assertTrue(numpy.isclose(9.6, soln['Ts']))

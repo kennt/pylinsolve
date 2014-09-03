@@ -7,15 +7,16 @@
 
 import collections
 
-import numpy
 from sympy import sympify
 from sympy import Function
 from sympy.core.cache import clear_cache
 from sympy.parsing.sympy_parser import parse_expr
 from sympy.parsing.sympy_parser import factorial_notation, auto_number
+from sympy.utilities import lambdify
 
 from pylinsolve.equation import Equation, EquationError, _rewrite
 from pylinsolve.parameter import Parameter, SeriesParameter
+from pylinsolve.utils import is_aclose
 from pylinsolve.variable import Variable
 
 
@@ -80,52 +81,44 @@ def _add_series_accessor(context):
     context['_series_acc'] = _SeriesAccessor
 
 
-def _run_solver(A, x, b,
-                max_iterations=10, relax=1.0,
+def _run_solver(variables, context,
+                max_iterations=10,
                 until=None, threshold=0.001,
-                decimals=None, debuglist=None):
+                debuglist=None):
     """ Runs the main solver loop
 
-        Returns:
-            A numpy vector containing the solution of the
-            equations.
+        Returns: a context with the values of the solution
 
         Raises:
             SolutionNotFoundError
     """
-    # pylint: disable=invalid-name,too-many-locals
+    # pylint: disable=star-args
     testf = (until or
-             (lambda x1, x2: numpy.allclose(x1, x2, rtol=threshold)))
+             (lambda x1, x2: is_aclose(x1, x2, rtol=threshold)))
 
-    curr = numpy.copy(x)
     if debuglist is not None:
-        debuglist.append(curr)
+        debuglist.append(context)
 
+    current = [x for x in context.values()]
     soln = None
-    A_cache = [None] * A.shape[0]
-    for i in xrange(A.shape[0]):
-        A_cache[i] = A[i, :]
 
     for _ in xrange(max_iterations):
-        nextx = numpy.copy(curr)
+        next_soln = list(current)
 
-        for i in xrange(A.shape[0]):
-            nextx[i] = 0.0
-            sub = A_cache[i].dot(nextx)
-            nextx[i] = (curr[i] + relax * (((b[i] - sub) / A[i, i]) - curr[i]))
+        for variable in variables.values():
+            next_soln[variable._index] = \
+                float(variable.equation.func(*next_soln))
 
         if debuglist is not None:
-            debuglist.append(nextx)
+            debuglist.append(next_soln.copy())
 
-        if testf(curr, nextx):
-            soln = nextx
+        if testf(current, next_soln):
+            soln = {var: next_soln[var._index] for var in context.keys()}
             break
-        curr = nextx
+        current = list(next_soln)
 
     if soln is None:
         raise SolutionNotFoundError()
-    if decimals is not None:
-        soln = numpy.around(soln, decimals=decimals)
     return soln
 
 
@@ -136,7 +129,6 @@ class Model(object):
         Attributes:
             variables:
             parameters:
-            equations:
     """
     # pylint: disable=too-many-instance-attributes
 
@@ -153,7 +145,6 @@ class Model(object):
 
         self.variables = collections.OrderedDict()
         self.parameters = collections.OrderedDict()
-        self.equations = list()
         self.solutions = list()
 
         self._private_parameters = collections.OrderedDict()
@@ -161,12 +152,7 @@ class Model(object):
         self._var_default = None
         self._param_default = None
 
-        # mapping of variable -> index
-        # used for the matrix algebra solvers
-        self._var_map = collections.OrderedDict()
-
-        # mapping of variable -> equation
-        self._var_eqn = dict()
+        self._need_function_update = True
 
         _add_series_accessor(self._local_context)
 
@@ -198,8 +184,7 @@ class Model(object):
         var.model = self
 
         _add_var_to_context(self._local_context, var)
-
-        self._var_map[var] = len(self._var_map)
+        self._need_function_update = True
         return var
 
     def vars(self, *args):
@@ -239,7 +224,14 @@ class Model(object):
         param.model = self
         self.parameters[name] = param
         _add_param_to_context(self._local_context, param)
+        self._need_function_update = True
         return param
+
+    def set_parameters(self, values):
+        """ Sets the values for the paramters """
+        for param in self.parameters.values():
+            if param.name in values:
+                param.value = values[param.name]
 
     def add(self, equation, desc=None):
         """ Adds an equation to the model.
@@ -254,10 +246,9 @@ class Model(object):
 
             Returns: an Equation
         """
-        eqn = Equation(equation, desc=desc)
-        eqn.model = self
+        eqn = Equation(self, equation, desc=desc)
         eqn.parse(self._local_context)
-        self.equations.append(eqn)
+        self._need_function_update = True
 
     def _validate_equations(self):
         """ Does some validation """
@@ -268,74 +259,27 @@ class Model(object):
                                     variable.name,
                                     'variable does not have equation')
 
-    def _latest_solution_vector(self):
-        """ Returns the latest solution vector.  If there is
-            none, returns a vector with the default values.
+    def _get_context(self):
+        """ Prepares the context for evaluation """
+        context = collections.OrderedDict()
 
-            Returns:
-                A numpy array of dimension 1
-        """
-        latest = numpy.zeros((len(self.variables),))
         for variable in self.variables.values():
-            index = self._var_map[variable]
-            latest[index] = variable.value
-        return latest
-
-    def _prepare_solver(self, sparse=False):
-        """ Prepares the solver for running.
-            This will run through the equations, evaluating the
-            parameters/variables and placing the cofficients into
-            matrices for evaluation.
-
-            Returns:
-                A tuple of matrices, (A, b)
-        """
-        # pylint: disable=invalid-name
-
-        # prepare the local context in order to eval the
-        # variables
-        context = dict()
+            context[variable] = variable.value
         for param in self.parameters.values():
             context[param] = param.value
         for param in self._private_parameters.values():
             context[param] = param.value
-
-        nvars = len(self.variables)
-        b = numpy.zeros((nvars,))
-        if sparse:
-            from scipy.sparse import dok_matrix
-            A = dok_matrix((nvars, nvars))
-        else:
-            A = numpy.zeros((nvars, nvars))
-        row = 0
-        for variable in self.variables.values():
-            for varname, term in variable.equation.variable_terms().items():
-                index = self._var_map[self.variables[varname]]
-                A[row, index] = sympify(term).evalf(subs=context)
-
-            b[row] = -sympify(
-                variable.equation.constant_term()).evalf(subs=context)
-            row += 1
-
-        if sparse:
-            A = A.tocsr()
-        return (A, b)
+        return context
 
     def _update_solutions(self, solution):
-        """ Unpack the solutions from the numpy vector into a
-            dict() and update the solutions array.
+        """ Given the solution, update the variables and the
+            solutions list.
         """
-        new_soln = collections.OrderedDict()
         for variable in self.variables.values():
-            index = self._var_map[variable]
-            variable.value = solution[index]
-            new_soln[variable.name] = float(variable.value)
-        for param in self.parameters.values():
-            new_soln[param.name] = float(param.value)
-        self.solutions.append(new_soln)
+            variable.value = solution[variable.name]
+        self.solutions.append(solution.copy())
 
-    def solve(self, iterations=10, until=None, threshold=0.001,
-              relaxation=1.0, decimals=None, sparse=False):
+    def solve(self, iterations=10, until=None, threshold=0.001):
         """ Runs the solver.
 
             The solver will try to find a solution until one of the
@@ -353,28 +297,36 @@ class Model(object):
                     vector and the current solution vector.
                 threshold: If using the default end condition, this is the
                     threshold that the residuals must be less than.
-                relaxation: Set this to use SOR rather than pure
-                    Gauss-Seidel iteration. (Default: 1.0, Gauss-Seidel)
 
             Raises:
                 SolutionNotFoundError:
         """
         # pylint: disable=invalid-name
         self._validate_equations()
-        x = self._latest_solution_vector()
+
+        current = self._get_context()
         if len(self.solutions) == 0:
-            self._update_solutions(x)
-        A, b = self._prepare_solver(sparse=sparse)
-        solution = _run_solver(A, x, b,
+            self._update_solutions({k.name: v for k, v in current.items()})
+
+        # do we need to update the function lambdas?  This is needed
+        # if the number of variables/parameters changes.
+        if self._need_function_update:
+            arg_list = [x for x in current.keys()]
+            for i in xrange(len(arg_list)):
+                arg_list[i]._index = i
+
+            for var in self.variables.values():
+                var.equation.func = lambdify(arg_list, var.equation.expr)
+            self._need_function_update = False
+
+        solution = _run_solver(self.variables,
+                               current,
                                max_iterations=iterations,
                                until=until,
-                               threshold=threshold,
-                               relax=relaxation,
-                               decimals=decimals)
-
-        # unpack the solution vector into the variables and
-        # solution dict()
-        self._update_solutions(solution)
+                               threshold=threshold)
+        soln = {k.name: v for k, v in solution.items()}
+        self.set_variables(soln)
+        self._update_solutions(soln)
 
     def get_at(self, variable, iteration):
         """ Returns the variable for a previous iteration.
@@ -428,6 +380,7 @@ class Model(object):
                                     default=variable.default)
             self._private_parameters[iter_name] = param
             _add_param_to_context(self._local_context, param)
+            self._need_function_update = True
         return self._private_parameters[iter_name]
 
     def get_value(self, variable, iteration):
@@ -464,12 +417,4 @@ class Model(object):
         expr = parse_expr(equation,
                           self._local_context,
                           transformations=(factorial_notation, auto_number))
-
-        context = dict()
-        for variable in self.variables.values():
-            context[variable] = variable.value
-        for param in self.parameters.values():
-            context[param] = param.value
-        for param in self._private_parameters.values():
-            context[param] = param.value
-        return expr.evalf(subs=context)
+        return expr.evalf(subs=self._get_context())

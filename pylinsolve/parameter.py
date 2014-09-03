@@ -35,6 +35,7 @@ class Parameter(Symbol):
         self.default = default
         self.model = None
 
+        self._index = None
         self._value = default
 
     @property

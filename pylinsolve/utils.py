@@ -25,6 +25,24 @@ def round_solution(soln, decimals=4):
     return new_soln
 
 
+def is_aclose(prev, curr, atol=1e-4, rtol=1e-4):
+    """ Determines if the values within two dicts() are
+        close.  Uses numpy.isclose()
+
+        Arguments:
+            prev: previous iteration dict()
+            curr: current iteration dict()
+            atol: absolute tolerance
+            rtol: relative tolerance
+
+        Returns: True if the values of the dict() are within
+            the tolerances.  False otherwise.
+    """
+    aprev = numpy.array(prev)
+    acurr = numpy.array(curr)
+    return numpy.allclose(aprev, acurr, atol=atol, rtol=rtol)
+
+
 def is_close(prev, curr, atol=1e-4, rtol=1e-4):
     """ Determines if the values within two dicts() are
         close.  Uses numpy.isclose()

@@ -38,10 +38,6 @@ def _rewrite(variables, parameters, equation):
             'x(-t)' -> '_series_acc(x, _iter-t)'
             We translate this into a function so that we can evaluate
             the parameter symbolically before the call.
-
-            Put the equation into our "canonical" form, 'f(x)=0'
-            This only occurs if an '=' appears in the expression
-            'x = y' -> 'x -(y)'
     """
     new_equation = equation
 
@@ -57,25 +53,45 @@ def _rewrite(variables, parameters, equation):
                               "_series_acc({0},".format(param),
                               new_equation)
 
-    if '=' in new_equation:
-        parts = new_equation.split('=')
-        new_equation = '-('.join([x.strip() for x in parts]) + ')'
     return new_equation
 
 
 class Equation(object):
     """ This class contains an 'equation'.
 
+        An equation is of the form "x = f(...)".  The left-hand side
+        contains the variable that is being solved for.  The right-hand
+        side will be evaluated to give a value for that variable.
+
+        The actual form of the equation is such that there can only be
+        a single variable on the left hand side (although constants and
+        parameters may also be used).
+
+        Examples:
+            x - x(-1) = .....
+            10*alpha1*x = ......
+
+        The equation will then be parsed and transformed into the
+        canonical form
+            x = f(....)
+
         Attributes:
             equation: The original equation string
-            desc:
+            desc: A description of the equation.  Used for docs.
+            model: A reference back to the model that contains the
+                proper context, that is the equation will be evaluated
+                within the context of this model.
+            expr: This is the "value" of the equation. This is a sympy
+                expression that will need to be evaluated within the
+                proper context to return a value.
+            func:
     """
-    def __init__(self, equation, desc=None):
+    def __init__(self, model, equation, desc=None):
         self.equation = equation
         self.desc = desc
-        self.model = None
-        self._var_terms = dict()
-        self._const_term = 0
+        self.model = model
+        self.expr = None
+        self.func = None
 
     def parse(self, context):
         """ Parses the string with sympy.
@@ -94,104 +110,60 @@ class Equation(object):
         # Rewrite the equation into canonical form
         equation = _rewrite(variables, parameters, self.equation)
 
-        # parse the equation
-        expr = parse_expr(equation,
-                          context,
-                          transformations=(factorial_notation, auto_number))
-        expr = expr.expand()
-        self._separate_terms(expr)
+        sides = equation.split('=')
+        if len(sides) != 2:
+            raise EquationError('equals-sign',
+                                self.equation,
+                                'there must be one and only one "=" sign')
 
-    def _separate_terms(self, expr):
-        """ Separate the terms into constant terms and variable terms.
-            (with the coefficients broken out separately).
+        transforms = (factorial_notation, auto_number)
+
+        # need to examine the left-hand side
+        rhs = parse_expr(sides[1], context, transformations=transforms)
+
+        lhs = parse_expr(sides[0], context, transformations=transforms)
+        lhs = lhs.expand()
+
+        # Determine how to isolate the variable by addition/division
+        variable, add_terms, mul_terms = self._isolate_variable(lhs)
+        if variable is not None and variable.equation is not None:
+            raise EquationError('var-eqn-exists',
+                                self.equation,
+                                'equation for variable already defined : ' +
+                                variable.name)
+        if add_terms is not None:
+            rhs = rhs - add_terms
+        if mul_terms is not None:
+            rhs = rhs / mul_terms
+
+        self.expr = rhs
+        variable.equation = self
+
+    def _isolate_variable(self, expr):
+        """ This will isolate the expr so that it only contains
+            a single variable.
+
+            original: 34*x + 99 = y
+            thus: 34*x + 99
+            will return (99, 34)
+            and we will then modify the rhs to do (y-99)/34
+
+            Returns: a tuple containing the additive factor and the
+                multiplicative factor for the left-hand side.
         """
-        # pylint: disable=too-many-branches
         variables = self.model.variables
 
-        # need to search the equation string manually
-        # sympy may reorder the terms
-        for term in expr.as_ordered_terms():
-            if term.is_number:
-                self._const_term += term
-            elif term.is_Symbol:
-                if term.name in variables:
-                    self._var_terms.setdefault(term.name, 0)
-                    self._var_terms[term.name] += 1
-                else:
-                    # may be a parameter or sympy-supplied symbol
-                    self._const_term += term
-            elif term.is_Mul:
-                atoms = [k for k in term.atoms()
-                         if not k.is_number and k.name in variables]
-                if len(atoms) > 1:
-                    raise EquationError('not-independent',
-                                        self.equation,
-                                        'equations are not independent: ' +
-                                        str(term))
-                elif len(atoms) == 0:
-                    # This is a constant term
-                    self._const_term += term
-                else:
-                    # There is a single variable in here.
-                    var = None
-                    coeff = 1
-                    for arg in term.args:
-                        if arg.is_Symbol and arg.name in variables:
-                            var = arg
-                        else:
-                            coeff *= arg
-
-                    if var is None:
-                        # could not find a single variable, it may
-                        # be non-linear
-                        raise EquationError('non-linear',
-                                            self.equation,
-                                            'linear expressions only: ' +
-                                            str(term))
-                    self._var_terms.setdefault(var.name, 0)
-                    self._var_terms[var.name] += coeff
-            else:
-                # This is most likely a function or operator of
-                # some kind that is unexpected
-                raise EquationError('unexpected-term',
-                                    self.equation,
-                                    'unexpected term : ' + str(term))
-
-        # First, try to determine the first variable to appear in
-        # the equation.  We'll have to manually parse the string.
-        first_var = None
-        for match in re.finditer(r"\b\w+\b", self.equation):
-            if (match.group() in variables
-                    and (match.end() >= len(self.equation)
-                         or self.equation[match.end()] != '(')):
-                first_var = variables[match.group()]
-                break
-
-        # could not find a match, iterate through the variables
-        # for a match.
-        if first_var is not None and first_var.equation is not None:
-            first_var = None
-            for var in variables.values():
-                if var.equation is None and var.name in self._var_terms:
-                    first_var = var
-                    break
-
-        if first_var is None:
-            raise EquationError('no-variable',
+        # first, there must only be one variable
+        atoms = [k for k in expr.atoms()
+                 if not k.is_number and k.name in variables]
+        if len(atoms) != 1:
+            raise EquationError('lhs-variables',
                                 self.equation,
-                                'Equation may not contain a variable ' +
-                                'or the system may be overspecified')
-        first_var.equation = self
-
-    def variable_terms(self):
-        """ Returns a dict of the variable terms in the equation.
-
-            The terms are seperated into tuples (coefficient:variable)
-        """
-        return self._var_terms
-
-    def constant_term(self):
-        """ Returns a list of the constant terms in the equation.
-            These are terms that do not contain a variable.
-        """
-        return self._const_term
+                                'The left-hand side must have one variable')
+        variable = atoms[0]
+        mul_term = expr.coeff(variable, 1)
+        add_term = 0
+        for term in expr.as_ordered_terms():
+            if variable not in term.atoms():
+                add_term += term
+        return (variable, add_term, mul_term)
