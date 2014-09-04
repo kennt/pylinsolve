@@ -130,9 +130,7 @@ def _run_solver(variables, context,
     if debuglist is not None:
         debuglist.append(context)
 
-    current = ([func[1] for func in _RT_FUNCS] +
-               [float(x) for x in context.values()])
-    begin = len(_RT_FUNCS)
+    current = [float(x) for x in context.values()]
     soln = None
 
     for _ in xrange(max_iterations):
@@ -145,7 +143,7 @@ def _run_solver(variables, context,
         if debuglist is not None:
             debuglist.append({v: next_soln[v._index] for v in context.keys()})
 
-        if testf(current[begin:], next_soln[begin:]):
+        if testf(current, next_soln):
             soln = {v: next_soln[v._index] for v in context.keys()}
             break
         current = next_soln
@@ -352,15 +350,19 @@ class Model(object):
             self._update_solutions({k.name: v for k, v in current.items()})
 
         # do we need to update the function lambdas?  This is needed
-        # if the number of variables/parameters changes.
+        # if the number of variables/parameters/equations change.
         if self._need_function_update:
-            arg_list = [f[0] for f in _RT_FUNCS] + [x for x in current.keys()]
+            arg_list = [x for x in current.keys()]
             for i in xrange(len(arg_list)):
                 if isinstance(arg_list[i], Symbol):
                     arg_list[i]._index = i
 
+            private_funcs = {x[2].__name__: x[1] for x in _RT_FUNCS}
+
             for var in self.variables.values():
-                var.equation.func = lambdify(arg_list, var.equation.expr)
+                var.equation.func = lambdify(arg_list,
+                                             var.equation.expr,
+                                             private_funcs)
 
             self._need_function_update = False
 

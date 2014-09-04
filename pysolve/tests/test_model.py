@@ -248,6 +248,36 @@ class TestModel(unittest.TestCase):
         with self.assertRaises(SolutionNotFoundError):
             model.solve(iterations=100, threshold=1e-4)
 
+    def test_model_with_function(self):
+        """ Test model with builtin function call test """
+        model = Model()
+        model.var('x', default=0)
+        model.var('y', default=0)
+        model.add('2*x = 12 - y')
+        model.add('y = if_true(x > 10) + 5')
+
+        model.solve(iterations=10, threshold=1e-4)
+
+        self.assertEquals(2, len(model.solutions))
+        self.assertEquals(0, model.solutions[0]['x'])
+        self.assertEquals(0, model.solutions[0]['y'])
+        self.assertEquals(3.5, model.solutions[1]['x'])
+        self.assertEquals(5, model.solutions[1]['y'])
+
+        model = Model()
+        model.var('x', default=0)
+        model.var('y', default=0)
+        model.add('2*x = 12 + y')
+        model.add('y = if_true(x > 5)')
+
+        model.solve(iterations=10, threshold=1e-4)
+
+        self.assertEquals(2, len(model.solutions))
+        self.assertEquals(0, model.solutions[0]['x'])
+        self.assertEquals(0, model.solutions[0]['y'])
+        self.assertEquals(6.5, model.solutions[1]['x'])
+        self.assertEquals(1, model.solutions[1]['y'])
+
     def test_full_model(self):
         """ Test by implementing a model
 
