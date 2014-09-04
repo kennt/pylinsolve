@@ -7,9 +7,9 @@
 
 import unittest
 
-from pylinsolve import InvalidNameError
-from pylinsolve.parameter import Parameter, SeriesParameter
-from pylinsolve.variable import Variable
+from pysolve import InvalidNameError
+from pysolve.parameter import Parameter, SeriesParameter
+from pysolve.variable import Variable
 
 
 class TestParameter(unittest.TestCase):

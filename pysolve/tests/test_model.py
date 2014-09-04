@@ -9,9 +9,9 @@ import unittest
 
 import numpy
 
-from pylinsolve.equation import EquationError
-from pylinsolve.model import Model, DuplicateNameError, SolutionNotFoundError
-from pylinsolve.utils import round_solution, is_close
+from pysolve.equation import EquationError
+from pysolve.model import Model, DuplicateNameError, SolutionNotFoundError
+from pysolve.utils import round_solution, is_close
 
 
 class TestModel(unittest.TestCase):

@@ -1,13 +1,14 @@
-# pylinsolve - Solving systems of linear equations
+# pysolve - Solving systems of equations
 The purpose of this tool is to aid in expressing and solving
-sets of linear equations using Python.
+sets of equations using Python.
 
 This tool will take a textual description of the equations,
-convert this into matrix form, and then run the solver
-iteratively until it converges to a solution.
+and then run the solver iteratively until it converges to 
+a solution.
 
-pylinsolve uses Gauss-Seidel/SOR to iterate to a solution.  
-It also uses parts of sympy to aid in parsing the equations.
+pysolve uses Gauss-Seidel/SOR to iterate to a solution.  
+It also uses parts of sympy to aid in parsing the equations and
+evaluating the equations.
 
 The initial motivation for this tool was to solve economic
 models based on Stock Flow Consistent (SFC) models.
@@ -15,7 +16,7 @@ models based on Stock Flow Consistent (SFC) models.
 ## How to install
 
 ```python
-pip install pylinsolve
+pip install pysolve
 ```
 
 ## How to use
@@ -28,8 +29,8 @@ pip install pylinsolve
 This example is taken Chapter 3 of the book "Monetary Economics 2e" by
 Lavoie and Godley, 2012.
 ```python
-from pylinsolve.model import Model
-from pylinsolve.utils import round_solution,is_close
+from pysolve.model import Model
+from pysolve.utils import round_solution, is_close
 
 model = Model()
 

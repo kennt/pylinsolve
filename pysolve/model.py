@@ -14,10 +14,10 @@ from sympy.parsing.sympy_parser import parse_expr
 from sympy.parsing.sympy_parser import factorial_notation, auto_number
 from sympy.utilities import lambdify
 
-from pylinsolve.equation import Equation, EquationError, _rewrite
-from pylinsolve.parameter import Parameter, SeriesParameter
-from pylinsolve.utils import is_aclose
-from pylinsolve.variable import Variable
+from pysolve.equation import Equation, EquationError, _rewrite
+from pysolve.parameter import Parameter, SeriesParameter
+from pysolve.utils import is_aclose
+from pysolve.variable import Variable
 
 
 class DuplicateNameError(ValueError):

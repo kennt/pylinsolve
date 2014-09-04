@@ -3,8 +3,8 @@
 # pylint: disable=invalid-name
 import time
 
-from pylinsolve.model import Model
-from pylinsolve.utils import round_solution, is_close
+from pysolve.model import Model
+from pysolve.utils import round_solution, is_close
 
 
 def create_model():

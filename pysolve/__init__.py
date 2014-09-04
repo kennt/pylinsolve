@@ -1,4 +1,4 @@
-""" Root module for pylinsolve tool.
+""" Root module for pysolve tool.
 
     Copyright (c) 2014 Kenn Takara
     See LICENSE for details

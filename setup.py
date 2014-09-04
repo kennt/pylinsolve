@@ -8,8 +8,8 @@ def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 setup(
-    name='pylinsolve',
-    version='0.1dev',
+    name='pysolve',
+    version='0.1',
     packages=find_packages(),
     install_requires=['sympy', 'numpy'],
     license='MIT',

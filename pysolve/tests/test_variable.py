@@ -7,8 +7,8 @@
 
 import unittest
 
-from pylinsolve import InvalidNameError
-from pylinsolve.variable import Variable
+from pysolve import InvalidNameError
+from pysolve.variable import Variable
 
 
 class TestVariable(unittest.TestCase):

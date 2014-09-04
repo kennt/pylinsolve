@@ -1,15 +1,14 @@
 ==========
-pylinsolve
+pysolve
 ==========
 Solving systems of linear equations
 -----------------------------------
 
 The purpose of this code is to aid in expressing and solving
-sets of linear equations using Python.
+sets of equations using Python.
 
-This tool will take a textual description of the equations,
-convert into matrix form, and then run the solver
-iteratively until it converges to a solution.
+This tool will take a textual description of the equations 
+and then run the solver iteratively until it converges to a solution.
 
 The solver uses Gauss-Seidel/SOR to iterate to a solution.  
 It also uses parts of sympy to aid in parsing the equations.
@@ -21,8 +20,8 @@ Example usage
 -------------
 
 .. code::
-	from pylinsolve.model import Model
-	from pylinsolve.utils import round_solution,is_close
+	from pysolve.model import Model
+	from pysolve.utils import round_solution,is_close
 
 	model = Model()
 

@@ -7,7 +7,7 @@
 
 from sympy import Symbol
 
-from pylinsolve import InvalidNameError
+from pysolve import InvalidNameError
 
 
 class Variable(Symbol):

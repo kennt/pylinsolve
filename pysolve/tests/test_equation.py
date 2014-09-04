@@ -11,11 +11,11 @@ import unittest
 import sympy
 from sympy import Symbol
 
-from pylinsolve.equation import Equation, _rewrite, EquationError
-from pylinsolve.model import _add_var_to_context, _add_param_to_context
-from pylinsolve.model import _add_functions
-from pylinsolve.parameter import Parameter
-from pylinsolve.variable import Variable
+from pysolve.equation import Equation, _rewrite, EquationError
+from pysolve.model import _add_var_to_context, _add_param_to_context
+from pysolve.model import _add_functions
+from pysolve.parameter import Parameter
+from pysolve.variable import Variable
 
 
 class TestEquation(unittest.TestCase):

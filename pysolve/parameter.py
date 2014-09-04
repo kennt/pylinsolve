@@ -7,8 +7,8 @@
 
 from sympy import Symbol
 
-from pylinsolve import InvalidNameError
-from pylinsolve.variable import Variable
+from pysolve import InvalidNameError
+from pysolve.variable import Variable
 
 
 class Parameter(Symbol):

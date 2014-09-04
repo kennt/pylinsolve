@@ -3,8 +3,8 @@
 # pylint: disable=invalid-name
 import time
 
-from pylinsolve.model import Model
-from pylinsolve.utils import round_solution, is_close
+from pysolve.model import Model
+from pysolve.utils import round_solution, is_close
 
 
 def create_lp_model():
@@ -88,6 +88,9 @@ def create_lp_model():
     model.add('Rb = Rbar')
     model.add('Pbl = Pblbar')
 
+    # if_true(x) returns 1 if x is true, else 0 is returned
+    model.add('z1 = if_true(tp > top)')
+    model.add('z2 = if_true(tp < bot)')
     return model
 
 start = time.clock()
