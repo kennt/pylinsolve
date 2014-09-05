@@ -40,6 +40,18 @@ class SolutionNotFoundError(Exception):
         return self.text
 
 
+class CalculationError(Exception):
+    """ Exception: An error occurred while evaluating an equation """
+    def __init__(self, inner, equation, context):
+        super(CalculationError, self).__init__()
+        self.inner = inner
+        self.equation = equation
+        self.context = context
+
+    def __str__(self):
+        return str(self.inner)
+
+
 def _add_var_to_context(context, var):
     """ Adds the var and the variable's series accessor function
         to the list of known symbols.
@@ -137,8 +149,14 @@ def _run_solver(variables, context,
         next_soln = list(current)
 
         for variable in variables.values():
-            next_soln[variable._index] = \
-                float(variable.equation.func(*next_soln))
+            try:
+                next_soln[variable._index] = \
+                    float(variable.equation.func(*next_soln))
+            except Exception, err:
+                raise CalculationError(
+                    err,
+                    variable.equation,
+                    {v: next_soln[v._index] for v in context.keys()})
 
         if debuglist is not None:
             debuglist.append({v: next_soln[v._index] for v in context.keys()})

@@ -11,6 +11,7 @@ import numpy
 
 from pysolve.equation import EquationError
 from pysolve.model import Model, DuplicateNameError, SolutionNotFoundError
+from pysolve.model import CalculationError
 from pysolve.utils import round_solution, is_close
 
 
@@ -247,6 +248,18 @@ class TestModel(unittest.TestCase):
 
         with self.assertRaises(SolutionNotFoundError):
             model.solve(iterations=100, threshold=1e-4)
+
+    def test_calculation_error(self):
+        """ Test an error while calculating """
+        model = Model()
+        model.var('y', default=0)
+        model.var('x', default=0)
+        model.add('y = 2/x')
+        model.add('x = 12')
+
+        with self.assertRaises(CalculationError) as context:
+            model.solve(iterations=10, threshold=1e-4)
+        self.assertTrue(isinstance(context.exception.inner, ZeroDivisionError))
 
     def test_model_with_function(self):
         """ Test model with builtin function call test """
