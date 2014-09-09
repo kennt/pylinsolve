@@ -49,7 +49,7 @@ class CalculationError(Exception):
         self.context = context
 
     def __str__(self):
-        return str(self.inner)
+        return str(self.inner) + ' : ' + str(self.equation.equation)
 
 
 def _add_var_to_context(context, var):
