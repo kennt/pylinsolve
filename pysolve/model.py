@@ -142,10 +142,11 @@ def _run_solver(variables, context,
     if debuglist is not None:
         debuglist.append(context)
 
-    current = [float(x) for x in context.values()]
+    next_soln = [float(x) for x in context.values()]
     soln = None
 
     for _ in xrange(max_iterations):
+        current = next_soln
         next_soln = list(current)
 
         for variable in variables.values():
@@ -164,10 +165,16 @@ def _run_solver(variables, context,
         if testf(current, next_soln):
             soln = {v: next_soln[v._index] for v in context.keys()}
             break
-        current = next_soln
 
     if soln is None:
-        raise SolutionNotFoundError()
+        # determine the variables that have not converged
+        problem_vars = []
+        for variable in variables.values():
+            if not testf([current[variable._index], ],
+                         [next_soln[variable._index], ]):
+                problem_vars.append(variable.name)
+        raise SolutionNotFoundError(', '.join(problem_vars) +
+                                    ' have not converged')
     return soln
 
 
