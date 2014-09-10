@@ -284,15 +284,6 @@ class Model(object):
             val = self.evaluate(value)
         return val
 
-    def set_variables(self, values, ignore_errors=False):
-        """ Sets the values for the variables from default_values """
-        for name, value in _common_iterable(values):
-            if name in self.variables:
-                self.variables[name].value = self._evaluate(value)
-            elif not ignore_errors:
-                raise ValueError(
-                    "cannot find {0} in the list of variables".format(name))
-
     def set_param_default(self, default):
         """ Sets the default initial parameter value for all Parameters """
         self._param_default = default
@@ -313,14 +304,16 @@ class Model(object):
         self._need_function_update = True
         return param
 
-    def set_parameters(self, values, ignore_errors=False):
-        """ Sets the values for the paramters """
+    def set_values(self, values, ignore_errors=False):
+        """ Sets the values of variables or parameters """
         for name, value in _common_iterable(values):
-            if name in self.parameters:
+            if name in self.variables:
+                self.variables[name].value = self._evaluate(value)
+            elif name in self.parameters:
                 self.parameters[name].value = self._evaluate(value)
             elif not ignore_errors:
                 raise ValueError(
-                    "cannot find {0} in the list of parameters".format(name))
+                    "{0} is not a parameter/variable".format(name))
 
     def add(self, equation, desc=None):
         """ Adds an equation to the model.
@@ -367,8 +360,7 @@ class Model(object):
         """ Given the solution, update the variables and the
             solutions list.
         """
-        self.set_variables(solution, ignore_errors=True)
-        self.set_parameters(solution, ignore_errors=True)
+        self.set_values(solution, ignore_errors=True)
         self.solutions.append(solution.copy())
 
     def solve(self, iterations=10, until=None, threshold=0.001,

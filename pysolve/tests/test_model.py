@@ -39,15 +39,15 @@ class TestModel(unittest.TestCase):
         self.assertTrue('x' not in model.parameters)
 
     def test_set_variables(self):
-        """ Test set_variables() """
+        """ Test set_values of variables """
         model = Model()
         var_x = model.var('x', default=-1)
         self.assertEquals(-1, var_x.value)
-        model.set_variables({'x': 22})
+        model.set_values({'x': 22})
         self.assertEquals(22, var_x.value)
 
         with self.assertRaises(ValueError):
-            model.set_variables({'zz': -1})
+            model.set_values({'zz': -1})
 
     def test_param(self):
         """ Test parameter creation """
@@ -64,32 +64,32 @@ class TestModel(unittest.TestCase):
         self.assertTrue('x' in model.parameters)
 
     def test_set_parameters(self):
-        """ Test set_parameters() """
+        """ Test set_values of parameters """
         model = Model()
         param_a = model.param('a', default=-1)
         self.assertEquals(-1, param_a.value)
-        model.set_parameters({'a': 22})
+        model.set_values({'a': 22})
         self.assertEquals(22, param_a.value)
 
         with self.assertRaises(ValueError):
-            model.set_parameters({'zz': -1})
+            model.set_values({'zz': -1})
 
     def test_set_variables_equation(self):
-        """ Test set_variables using equations """
+        """ Test set_values of variables using equations """
         model = Model()
         model.param('a', default=-1)
         model.var('x', default=0)
 
-        model.set_variables({'x': 'a+12'})
+        model.set_values({'x': 'a+12'})
         self.assertEquals(11, model.variables['x'].value)
 
     def test_set_parameters_equation(self):
-        """ Test set_parameters using equations """
+        """ Test set_values of parameters using equations """
         model = Model()
         model.param('a', default=-1)
         model.var('x', default=0)
 
-        model.set_parameters({'a': 'x+12'})
+        model.set_values({'a': 'x+12'})
         self.assertEquals(12, model.parameters['a'].value)
 
     def test_set_var_default(self):
