@@ -26,4 +26,5 @@ setup(
     },
     url='https://github.com/kennt/pylinsolve',
     long_description=read('README.rst'),
+    description='A simple interface for solving systems of linear equations',
 )
