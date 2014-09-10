@@ -97,12 +97,15 @@ class TestModel(unittest.TestCase):
         model = Model()
         model.var('x')
         model.var('y')
-        model.add('x = y')
+        eqn = model.add('x = y')
 
         self.assertEquals(2, len(model.variables))
         self.assertEquals(0, len(model.parameters))
         self.assertIsNotNone(model.variables['x'].equation)
         self.assertIsNone(model.variables['y'].equation)
+
+        self.assertEquals(1, len(model.equations))
+        self.assertEquals(eqn, model.equations[0])
 
     def test_rule_with_coefficients(self):
         """ Test creating rules with simple coefficents """

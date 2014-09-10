@@ -102,6 +102,7 @@ class TestEquation(unittest.TestCase):
         self.assertEquals('y', str(eqn.expr))
         self.assertEquals(self.y, eqn.expr)
         self.assertEquals(eqn, self.x.equation)
+        self.assertEquals(self.x, eqn.variable)
 
     def test_parse_equals_sign_error(self):
         """ Test error handling for wrong number of "=" signs """

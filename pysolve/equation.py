@@ -94,7 +94,8 @@ class Equation(object):
             expr: This is the "value" of the equation. This is a sympy
                 expression that will need to be evaluated within the
                 proper context to return a value.
-            func:
+            func: The 'lambdified' version of expr (for perf)
+            variable: The variable that this equation defines.
     """
     def __init__(self, model, equation, desc=None):
         self.equation = equation
@@ -102,6 +103,7 @@ class Equation(object):
         self.model = model
         self.expr = None
         self.func = None
+        self.variable = None
 
     def parse(self, context):
         """ Parses the string with sympy.
@@ -152,6 +154,7 @@ class Equation(object):
         if mul_terms is not None:
             rhs = rhs / mul_terms
 
+        self.variable = variable
         self.expr = rhs
         variable.equation = self
 

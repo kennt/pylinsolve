@@ -124,9 +124,12 @@ def _add_functions(context):
         context[func[0]] = func[1]
 
 
-def _run_solver(variables, context,
+def _run_solver(equations,
+                variables,
+                context,
                 max_iterations=10,
-                until=None, threshold=0.001,
+                until=None,
+                threshold=0.001,
                 debuglist=None):
     """ Runs the main solver loop
 
@@ -135,7 +138,8 @@ def _run_solver(variables, context,
         Raises:
             SolutionNotFoundError
     """
-    # pylint: disable=star-args
+    # pylint: disable=star-args,too-many-locals
+
     testf = (until or
              (lambda x1, x2: is_aclose(x1, x2, rtol=threshold)))
 
@@ -149,11 +153,13 @@ def _run_solver(variables, context,
         current = next_soln
         next_soln = list(current)
 
-        for variable in variables.values():
+        for equation in equations:
+            variable = equation.variable
+
             try:
                 next_soln[variable._index] = \
                     float(variable.equation.func(*next_soln))
-            except Exception, err:
+            except Exception as err:
                 raise CalculationError(
                     err,
                     variable.equation,
@@ -185,6 +191,8 @@ class Model(object):
         Attributes:
             variables:
             parameters:
+            solutions:
+            equations:
     """
     # pylint: disable=too-many-instance-attributes
 
@@ -202,6 +210,7 @@ class Model(object):
         self.variables = collections.OrderedDict()
         self.parameters = collections.OrderedDict()
         self.solutions = list()
+        self.equations = list()
 
         self._private_parameters = collections.OrderedDict()
         self._local_context = dict()
@@ -316,6 +325,9 @@ class Model(object):
         eqn.parse(self._local_context)
         self._need_function_update = True
 
+        self.equations.append(eqn)
+        return eqn
+
     def _validate_equations(self):
         """ Does some validation """
         # Make sure that each variable has an equation
@@ -345,7 +357,8 @@ class Model(object):
         self.set_parameters(solution, ignore_errors=True)
         self.solutions.append(solution.copy())
 
-    def solve(self, iterations=10, until=None, threshold=0.001):
+    def solve(self, iterations=10, until=None, threshold=0.001,
+              debuglist=None):
         """ Runs the solver.
 
             The solver will try to find a solution until one of the
@@ -391,11 +404,13 @@ class Model(object):
 
             self._need_function_update = False
 
-        solution = _run_solver(self.variables,
+        solution = _run_solver(self.equations,
+                               self.variables,
                                current,
                                max_iterations=iterations,
                                until=until,
-                               threshold=threshold)
+                               threshold=threshold,
+                               debuglist=debuglist)
         soln = {k.name: v for k, v in solution.items()}
         self._update_solutions(soln)
 
