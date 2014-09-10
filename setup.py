@@ -9,14 +9,14 @@ def read(fname):
 
 setup(
     name='pysolve',
-    version='0.1',
+    version='0.1.1',
     packages=find_packages(),
     install_requires=['sympy', 'numpy'],
     license='MIT',
     author='Kenn Takara',
     author_email='kenn.takara@outlook.com',
     classifiers={
-        'Development Status :: 2 - Pre-Alpha'
+        'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: MIT License',
