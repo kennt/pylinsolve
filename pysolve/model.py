@@ -52,6 +52,16 @@ class CalculationError(Exception):
         return str(self.inner) + ' : ' + str(self.equation.equation)
 
 
+def _common_iterable(obj):
+    """ Use this to iterate through the list or dict """
+    if isinstance(obj, dict):
+        for key in obj:
+            yield key, obj[key]
+    else:
+        for _, value in enumerate(obj):
+            yield value[0], value[1]
+
+
 def _add_var_to_context(context, var):
     """ Adds the var and the variable's series accessor function
         to the list of known symbols.
@@ -266,11 +276,19 @@ class Model(object):
             varlist.append(self.var(arg))
         return varlist
 
+    def _evaluate(self, value):
+        """ Returns the float value or evaluates it """
+        try:
+            val = float(value)
+        except ValueError:
+            val = self.evaluate(value)
+        return val
+
     def set_variables(self, values, ignore_errors=False):
         """ Sets the values for the variables from default_values """
-        for name, value in values.items():
+        for name, value in _common_iterable(values):
             if name in self.variables:
-                self.variables[name].value = value
+                self.variables[name].value = self._evaluate(value)
             elif not ignore_errors:
                 raise ValueError(
                     "cannot find {0} in the list of variables".format(name))
@@ -297,16 +315,12 @@ class Model(object):
 
     def set_parameters(self, values, ignore_errors=False):
         """ Sets the values for the paramters """
-        for name, value in values.items():
+        for name, value in _common_iterable(values):
             if name in self.parameters:
-                self.parameters[name].value = value
+                self.parameters[name].value = self._evaluate(value)
             elif not ignore_errors:
                 raise ValueError(
                     "cannot find {0} in the list of parameters".format(name))
-
-        for param in self.parameters.values():
-            if param.name in values:
-                param.value = values[param.name]
 
     def add(self, equation, desc=None):
         """ Adds an equation to the model.

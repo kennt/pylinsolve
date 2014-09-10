@@ -74,6 +74,24 @@ class TestModel(unittest.TestCase):
         with self.assertRaises(ValueError):
             model.set_parameters({'zz': -1})
 
+    def test_set_variables_equation(self):
+        """ Test set_variables using equations """
+        model = Model()
+        model.param('a', default=-1)
+        model.var('x', default=0)
+
+        model.set_variables({'x': 'a+12'})
+        self.assertEquals(11, model.variables['x'].value)
+
+    def test_set_parameters_equation(self):
+        """ Test set_parameters using equations """
+        model = Model()
+        model.param('a', default=-1)
+        model.var('x', default=0)
+
+        model.set_parameters({'a': 'x+12'})
+        self.assertEquals(12, model.parameters['a'].value)
+
     def test_set_var_default(self):
         """ Test the set_var_default """
         model = Model()
