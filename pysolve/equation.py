@@ -122,11 +122,15 @@ class Equation(object):
         # Rewrite the equation into canonical form
         equation = _rewrite(variables, parameters, self.equation)
 
-        sides = equation.split('=')
+        # Find the location of the equal sign, also need to ignore
+        # things like <=, >=, ==, !=, etc...
+        # The (?<! is a negative lookbehind assertion, the characters
+        # that match aren't included in the match.
+        sides = re.split(r"(?<!<>=!)=(?<==)", equation)
         if len(sides) != 2:
             raise EquationError('equals-sign',
                                 self.equation,
-                                'there must be one and only one "=" sign')
+                                "Equation must be of the form f(...) = g(...)")
 
         transforms = (factorial_notation, auto_number)
 
