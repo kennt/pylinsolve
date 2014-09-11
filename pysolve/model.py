@@ -126,6 +126,10 @@ _PARSE_FUNCS = [('_series_acc', _SeriesAccessor),
 # Functions used at runtime
 _RT_FUNCS = [('if_true', _IfTrueFunction, _IfTrueNoEvalFunction), ]
 
+# Built-in funcs, supported by sympy
+from sympy import exp, log
+_BUILTIN_FUNCS = [('exp', exp), ('log', log)]
+
 
 def _add_functions(context):
     """ Adds our builtin functions.
@@ -402,6 +406,8 @@ class Model(object):
                     arg_list[i]._index = i
 
             private_funcs = {x[2].__name__: x[1] for x in _RT_FUNCS}
+            for x in _BUILTIN_FUNCS:
+                private_funcs[x[0]] = x[1]
 
             for var in self.variables.values():
                 var.equation.func = lambdify(arg_list,

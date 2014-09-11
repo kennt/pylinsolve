@@ -124,9 +124,7 @@ class Equation(object):
 
         # Find the location of the equal sign, also need to ignore
         # things like <=, >=, ==, !=, etc...
-        # The (?<! is a negative lookbehind assertion, the characters
-        # that match aren't included in the match.
-        sides = re.split(r"(?<!<>=!)=(?<==)", equation)
+        sides = re.split(r"(?<![<>=!])=(?!=)", equation)
         if len(sides) != 2:
             raise EquationError('equals-sign',
                                 self.equation,
