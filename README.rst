@@ -71,6 +71,6 @@ Example usage
 	print round_solution(model.solutions[-1], decimals=1)
 
 For additional examples, view the iPython notebooks at
-
+	http://nbviewer.ipython.org/github/kennt/monetary-economics/tree/master/
 
 

@@ -82,7 +82,9 @@ print round_solution(model.solutions[-1], decimals=1)
 ```
 
 ### More complex examples
-For more examples, please see the associated iPython notebooks.
+
+For additional examples, view the iPython notebooks at
+	http://nbviewer.ipython.org/github/kennt/monetary-economics/tree/master/
 
 ### Complex example with some shortcuts
 
