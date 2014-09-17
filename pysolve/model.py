@@ -174,6 +174,13 @@ def _run_solver(equations,
                 next_soln[variable._index] = \
                     float(variable.equation.func(*next_soln))
             except Exception as err:
+                # check to see if any of the atoms have a None value
+                for atom in variable.equation.expr.atoms():
+                    if atom.is_Symbol and  atom not in context:
+                        raise CalculationError(
+                            str(atom)+' has no value, cannot solve equation',
+                            variable.equation,
+                            {v: next_soln[v._index] for v in context.keys()})
                 raise CalculationError(
                     err,
                     variable.equation,
@@ -353,11 +360,14 @@ class Model(object):
         context = collections.OrderedDict()
 
         for variable in self.variables.values():
-            context[variable] = float(variable.value)
+            if variable.value is not None:
+                context[variable] = float(variable.value)
         for param in self.parameters.values():
-            context[param] = float(param.value)
+            if param.value is not None:
+                context[param] = float(param.value)
         for param in self._private_parameters.values():
-            context[param] = float(param.value)
+            if param.value is not None:
+                context[param] = float(param.value)
         return context
 
     def _update_solutions(self, solution):
