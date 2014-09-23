@@ -88,13 +88,28 @@ class _SeriesAccessor(Function):
                 not isinstance(arg[0], Parameter)):
             raise EquationError('not-a-variable',
                                 str(arg[0]),
-                                'Must be a variable or parameter')
+                                'Must be a var or param')
 
         if arg[0].model is None:
             raise EquationError('no-model',
                                 arg[0].name,
                                 'Variable must belong to a model')
         return arg[0].model.get_at(arg[0], arg[1])
+
+
+class _deltaFunction(Function):
+    """ Implements d(x) == x - x(-1) """
+    nargs = 1
+
+    @classmethod
+    def eval(cls, *arg):
+        """ Called from sympy to evaluate the function """
+        if (not isinstance(arg[0], Variable) and
+                not isinstance(arg[0], Parameter)):
+            raise EquationError('d-arg-not-a-variable',
+                                str(arg[0]),
+                                'The arg to d() must be a var or param')
+        return arg[0] - arg[0].model.get_at(arg[0], -1)
 
 
 class _IfTrueFunction(Function):
@@ -121,14 +136,22 @@ class _IfTrueNoEvalFunction(Function):
 
 # Functions defined and used at parse time
 _PARSE_FUNCS = [('_series_acc', _SeriesAccessor),
+                ('d', _deltaFunction),
                 ('if_true', _IfTrueNoEvalFunction)]
 
 # Functions used at runtime
 _RT_FUNCS = [('if_true', _IfTrueFunction, _IfTrueNoEvalFunction), ]
 
 # Built-in funcs, supported by sympy
-from sympy import exp, log
-_BUILTIN_FUNCS = [('exp', exp), ('log', log)]
+from sympy import exp, log, Abs, Min, Max, sign, sqrt
+_BUILTIN_FUNCS = [('exp', exp),
+                  ('log', log),
+                  ('abs', Abs),
+                  ('max', Max),
+                  ('min', Min),
+                  ('sign', sign),
+                  ('sqrt', sqrt),
+                 ]
 
 
 def _add_functions(context):
@@ -163,28 +186,30 @@ def _run_solver(equations,
     next_soln = [float(x) for x in context.values()]
     soln = None
 
-    for _ in xrange(max_iterations):
+    for i in xrange(max_iterations):
         current = next_soln
         next_soln = list(current)
 
         for equation in equations:
             variable = equation.variable
-
+            value = None
             try:
-                next_soln[variable._index] = \
-                    float(variable.equation.func(*next_soln))
+                value = variable.equation.func(*next_soln)
+                next_soln[variable._index] = float(value)
             except Exception as err:
                 # check to see if any of the atoms have a None value
+                curr_context = {v: next_soln[v._index] for v in context.keys()}
+                curr_context['__equation_value__'] = value
                 for atom in variable.equation.expr.atoms():
-                    if atom.is_Symbol and  atom not in context:
+                    if atom.is_Symbol and atom not in context:
                         raise CalculationError(
                             str(atom)+' has no value, cannot solve equation',
                             variable.equation,
-                            {v: next_soln[v._index] for v in context.keys()})
+                            curr_context)
                 raise CalculationError(
                     err,
                     variable.equation,
-                    {v: next_soln[v._index] for v in context.keys()})
+                    curr_context)
 
         if debuglist is not None:
             debuglist.append({v: next_soln[v._index] for v in context.keys()})

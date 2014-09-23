@@ -73,4 +73,25 @@ Example usage
 For additional examples, view the iPython notebooks at
 	http://nbviewer.ipython.org/github/kennt/monetary-economics/tree/master/
 
+Changelog
+---------
 
+0.1.5
+-----
+* Added the d() function.  Implements the difference between the current value
+and the value from a previous iteration.  d(x) is equivalent to x - x(-1)
+* Added support for the following sympy functions: abs, min, max, sign, sqrt
+* Added some helper functions to aid in debugging larger models
+* Added some code to show how to debug the models
+
+0.1.4
+-----
+* Improved error reporting when unable to solve an equation (due to variable
+missing a value).
+* Also, evaluate() used to require that all variables have a value, but that
+may not be true on initialization, so this requirement has been removed.
+
+0.1.3 (and before)
+------------------
+* Added support for the exp() and log() functions.
+* Fixed a bug where the usage of '>=' within an if_true() would cause an error.

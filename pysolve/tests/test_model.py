@@ -92,6 +92,18 @@ class TestModel(unittest.TestCase):
         model.set_values({'a': 'x+12'})
         self.assertEquals(12, model.parameters['a'].value)
 
+    def test_setting_multiple_variables(self):
+        """ Test set_values() with multiple variables """
+        model = Model()
+        model.param('a', default=3)
+        model.param('b', default=4)
+        model.var('x', default=-1)
+        model.var('y', default=-2)
+
+        model.set_values({'a': 'a+11', 'b': '4*b'})
+        self.assertEquals(14, model.parameters['a'].value)
+        self.assertEquals(16, model.parameters['b'].value)
+
     def test_set_var_default(self):
         """ Test the set_var_default """
         model = Model()
@@ -251,6 +263,29 @@ class TestModel(unittest.TestCase):
         self.assertEquals(11, model.evaluate('y(-1)'))
         self.assertEquals(73, model.evaluate('x(-1) + y(-1) + a(-1)'))
 
+    def test_delta(self):
+        """ test the d() function """
+        model = Model()
+        model.var('x', default=-1)
+        model.var('y', default=10)
+        model.param('a', default=.5)
+        model.solutions = [{'x': 2, 'y': 11, 'a': 60}]
+
+        model.variables['x'].value = 5
+        self.assertEquals(3, model.evaluate('d(x)'))
+
+    def test_delta_error(self):
+        model = Model()
+        model.var('x', default=-1)
+        model.var('y', default=10)
+        model.param('a', default=.5)
+        model.solutions = [{'x': 2, 'y': 11, 'a': 60}]
+        model.variables['x'].value = 5
+
+        with self.assertRaises(EquationError) as context:
+            model.evaluate('d(-1)')
+        self.assertEquals('d-arg-not-a-variable', context.exception.errorid)
+
     def test_if_true(self):
         """ Test the if_true builtin function """
         model = Model()
@@ -359,6 +394,8 @@ class TestModel(unittest.TestCase):
         self.assertTrue(numpy.isclose(18.5, soln['Cs']))
         self.assertTrue(numpy.isclose(12.3, soln['Hs']))
         self.assertTrue(numpy.isclose(12.3, soln['Hh']))
+        self.assertTrue(numpy.isclose(0, soln['_Hs__1']))
+        self.assertTrue(numpy.isclose(0, soln['_Hh__1']))
 
         model.solve(iterations=200, threshold=1e-3)
         soln = round_solution(model.solutions[-1], decimals=1)
@@ -368,6 +405,8 @@ class TestModel(unittest.TestCase):
         self.assertTrue(numpy.isclose(27.9, soln['Cs']))
         self.assertTrue(numpy.isclose(22.7, soln['Hs']))
         self.assertTrue(numpy.isclose(22.7, soln['Hh']))
+        self.assertTrue(numpy.isclose(12.3, soln['_Hs__1']))
+        self.assertTrue(numpy.isclose(12.3, soln['_Hh__1']))
 
         # Now run until the solutions themselves converge
         prev_soln = model.solutions[-1]
