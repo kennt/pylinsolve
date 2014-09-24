@@ -94,6 +94,10 @@ For additional examples, view the iPython notebooks at
 Changelog
 ---------
 
+0.1.6
+-----
+* Added support for solving with Broyden's method
+
 0.1.5
 -----
 * Added the d() function.  Implements the difference between the current value

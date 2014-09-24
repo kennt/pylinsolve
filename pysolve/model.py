@@ -182,6 +182,137 @@ def _add_functions(context):
         context[func[0]] = func[1]
 
 
+def _build_jacobian(model):
+    """ Creates the jacobian function matrix """
+    jacobian = []
+    for var_i in model.variables.values():
+        row_i = []
+        for var_j in model.variables.values():
+            # The equations should be of the form f(...) = 0
+            # so we need to transform
+            #   y = g(...) --> f(...) = g(...) - y = 0
+            expr = var_i.equation.expr - var_i
+            row_i.append(model._lambdify(expr.diff(var_j)))
+        jacobian.append(row_i)
+    return jacobian
+
+
+def _evaluate_equations_vector(model, context, current):
+    """ Evaluates the vector of equations at current """
+    # pylint: disable=invalid-name, star-args
+    nvars = len(model.variables.values())
+    F = numpy.zeros((nvars, ))
+    for i, var in enumerate(model.variables.values()):
+        try:
+            F[i] = -(var.equation.func(*current) - current[var._index])
+        except Exception as err:
+            raise CalculationError(err, var.equation, context)
+    return F
+
+
+def _evaluate_jacobian(model, jacobian, current):
+    """ Evaluates the jacobian at current """
+    # pylint: disable=invalid-name, star-args
+    nvars = len(model.variables.values())
+    J = numpy.zeros((nvars, nvars, ))
+    for i in xrange(len(model.variables.values())):
+        for j in xrange(nvars):
+            J[i, j] = jacobian[i][j](*current)
+    return J
+
+
+class BroydenSolver(object):
+    """ Implementes the Broyden method (using the Sherman-Morrison
+        formula).
+    """
+    def __init__(self, model):
+        self.model = model
+        self.jacobian = None
+        self.prev_d_inv = None
+        self.prev_d = None
+
+    def setup(self):
+        """ Perform any prep work """
+        if self.jacobian is None:
+            self.jacobian = _build_jacobian(self.model)
+
+    def reset(self):
+        """ Clear any prep work """
+        self.jacobian = None
+        self.prev_d_inv = None
+        self.prev_d = None
+
+    def solve(self, context, current, next_soln):
+        """ Performs a single iteration of the solver, generating a solution
+
+            Arguments:
+                current: The current solution, should not be modified.
+                next_soln: On entry, this contains a copy of current, the
+                    values for the next iteration should be placed here.
+
+            Raises:
+                CalculationError
+        """
+        # pylint: disable=invalid-name, too-many-locals
+
+        # Here's the algorithm
+        #   http://www.math.usm.edu/lambers/mat419/lecture11.pdf
+        # initial solution: x0
+        # D[0] = J(x[0])
+        # d[0] = - inv(D[0]) * g(x[0])
+        # x[1] = x[0] + d[0]
+        # k = 0
+        # until converge
+        #   u[k] = inv(D[k]) * g(x[k+1])
+        #   c[k] = d[k] * (d[k] + u[k])
+        #   inv(D[k+1]) = inv(D[k]) - (u[k] * d[k])*inv(D[k])/c[k]
+        #   d[k+1] = - inv(D[k+1])*g(x[k+1])
+        #   x[k+2] = x[k+1] + d[k+1]
+        #   k = k + 1
+
+        if self.prev_d is None:
+            g0 = _evaluate_equations_vector(self.model, context, current)
+            # D[0] = J(x[0])
+            D0 = _evaluate_jacobian(self.model, self.jacobian, current)
+
+            # d[0] = - inv(D[0]) * g(x[0])
+            D0inv = numpy.linalg.inv(D0)    # D0**-1
+            d0 = numpy.inner(D0inv.dot(g0), -1)  # - (D0**-1 * g0)
+
+            self.prev_d_inv = D0inv
+            self.prev_d = d0
+
+            dx = d0
+        else:
+            D0inv = self.prev_d_inv
+            d0 = self.prev_d
+            g1 = _evaluate_equations_vector(self.model, context, current)
+
+            #   u[k] = inv(D[k]) * g(x[k+1])
+            u0 = numpy.dot(D0inv, g1)       # D0inv * g1
+
+            #   c[k] = d[k] * (d[k] + u[k])
+            c0 = d0.dot(numpy.add(d0, u0))  # d0 * (d0 + u0)
+
+            #   inv(D[k+1]) = inv(D[k]) - (u[k] * d[k])*inv(D[k])/c[k]
+            D1inv = D0inv - (u0*d0.transpose())*D0inv/c0
+            term1 = numpy.dot(numpy.outer(u0, d0), D0inv)  # (u0*d0T)*D0inv
+            term1 = numpy.divide(term1, c0)
+            D1inv = numpy.subtract(D0inv, term1)
+
+            #   d[k+1] = - inv(D[k+1])*g(x[k+1])
+            d1 = numpy.inner(numpy.dot(D1inv, g1), -1)
+
+            self.prev_d_inv = D1inv
+            self.prev_d = d1
+
+            dx = d1
+
+        # dx now contains x(n+1) - x(n), to get x(n+1) add back in x(n)
+        for i, var in enumerate(self.model.variables.values()):
+            next_soln[var._index] += float(dx[i])
+
+
 class NewtonRaphsonSolver(object):
     """ Implements the Newton-Raphson method for solving a system of
         non-linear equations.
@@ -193,18 +324,7 @@ class NewtonRaphsonSolver(object):
     def setup(self):
         """ Perform any prepatory work before solving """
         if self.jacobian is None:
-            # Build the jacobian
-            # The jacobian is a list of rows
-            self.jacobian = []
-            for var_i in self.model.variables.values():
-                row_i = []
-                for var_j in self.model.variables.values():
-                    # The equations should be of the form f(...) = 0
-                    # so we need to transform
-                    #   y = g(...) --> f(...) = g(...) - y = 0
-                    expr = var_i.equation.expr - var_i
-                    row_i.append(self.model._lambdify(expr.diff(var_j)))
-                self.jacobian.append(row_i)
+            self.jacobian = _build_jacobian(self.model)
 
     def reset(self):
         """ Reset the solver """
@@ -221,22 +341,12 @@ class NewtonRaphsonSolver(object):
             Raises:
                 CalculationError
         """
-        # pylint: disable=star-args,invalid-name
+        # pylint: disable=invalid-name
 
         # evaluate the jacobian, and solve the linear equations
         #   J(X)(x(n+1) - x(n)) = -F(xn)
-        nvars = len(self.model.variables.values())
-        J = numpy.zeros((nvars, nvars, ))
-        F = numpy.zeros((nvars, ))
-
-        # Evaluate the F(xn) and J(Xn)
-        for i, var in enumerate(self.model.variables.values()):
-            try:
-                F[i] = -(var.equation.func(*current) - current[var._index])
-            except Exception as err:
-                raise CalculationError(err, var.equation, context)
-            for j in xrange(nvars):
-                J[i, j] = self.jacobian[i][j](*current)
+        F = _evaluate_equations_vector(self.model, context, current)
+        J = _evaluate_jacobian(self.model, self.jacobian, current)
 
         try:
             x = numpy.linalg.solve(J, F)
@@ -245,7 +355,7 @@ class NewtonRaphsonSolver(object):
 
         # x now contains x(n+1) - x(n), to get x(n+1) add back in x(n)
         for i, var in enumerate(self.model.variables.values()):
-            next_soln[var._index] += x[i]
+            next_soln[var._index] += float(x[i])
 
 
 class GaussSeidelSolver(object):
@@ -341,6 +451,7 @@ class Model(object):
         self._solvers = dict()
         self._solvers['newton-raphson'] = NewtonRaphsonSolver(self)
         self._solvers['gauss-seidel'] = GaussSeidelSolver(self)
+        self._solvers['broyden'] = BroydenSolver(self)
 
     def set_var_default(self, default):
         """ Sets the general default value for all variables. """
