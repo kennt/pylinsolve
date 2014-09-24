@@ -7,6 +7,8 @@
 
 import collections
 
+import numpy
+
 from sympy import sympify
 from sympy import Symbol, Function
 from sympy.core.cache import clear_cache
@@ -101,6 +103,12 @@ class _deltaFunction(Function):
     """ Implements d(x) == x - x(-1) """
     nargs = 1
 
+    def fdiff(self, argindex=1):
+        """ This function returns a constant value,
+            therefore the derivative is 0
+        """
+        return 0
+
     @classmethod
     def eval(cls, *arg):
         """ Called from sympy to evaluate the function """
@@ -118,6 +126,12 @@ class _IfTrueFunction(Function):
     """
     nargs = 1
 
+    def fdiff(self, argindex=1):
+        """ This function implements a Heaviside step function,
+            but determing where it occurs is problematic.
+        """
+        return 0
+
     @classmethod
     def eval(cls, *args):
         """ Called from sympy to evaluate the function """
@@ -129,6 +143,13 @@ class _IfTrueFunction(Function):
 
 class _IfTrueNoEvalFunction(Function):
     """ Stops the evaluation of the function in sympy. """
+
+    def fdiff(self, argindex=1):
+        """ This function implements a Heaviside step function,
+            but determing where it occurs is problematic.
+        """
+        return 0
+
     @classmethod
     def eval(cls, *args):
         """ Called during evaluation, but this one does nothing """
@@ -147,11 +168,11 @@ from sympy import exp, log, Abs, Min, Max, sign, sqrt
 _BUILTIN_FUNCS = [('exp', exp),
                   ('log', log),
                   ('abs', Abs),
-                  ('max', Max),
-                  ('min', Min),
+                  ('Max', Max),
+                  ('Min', Min),
                   ('sign', sign),
                   ('sqrt', sqrt),
-                 ]
+                  ]
 
 
 def _add_functions(context):
@@ -161,36 +182,100 @@ def _add_functions(context):
         context[func[0]] = func[1]
 
 
-def _run_solver(equations,
-                variables,
-                context,
-                max_iterations=10,
-                until=None,
-                threshold=0.001,
-                debuglist=None):
-    """ Runs the main solver loop
-
-        Returns: a context with the values of the solution
-
-        Raises:
-            SolutionNotFoundError
+class NewtonRaphsonSolver(object):
+    """ Implements the Newton-Raphson method for solving a system of
+        non-linear equations.
     """
-    # pylint: disable=star-args,too-many-locals
+    def __init__(self, model):
+        self.model = model
+        self.jacobian = None
 
-    testf = (until or
-             (lambda x1, x2: is_aclose(x1, x2, rtol=threshold)))
+    def setup(self):
+        """ Perform any prepatory work before solving """
+        if self.jacobian is None:
+            # Build the jacobian
+            # The jacobian is a list of rows
+            self.jacobian = []
+            for var_i in self.model.variables.values():
+                row_i = []
+                for var_j in self.model.variables.values():
+                    # The equations should be of the form f(...) = 0
+                    # so we need to transform
+                    #   y = g(...) --> f(...) = g(...) - y = 0
+                    expr = var_i.equation.expr - var_i
+                    row_i.append(self.model._lambdify(expr.diff(var_j)))
+                self.jacobian.append(row_i)
 
-    if debuglist is not None:
-        debuglist.append(context)
+    def reset(self):
+        """ Reset the solver """
+        self.jacobian = None
 
-    next_soln = [float(x) for x in context.values()]
-    soln = None
+    def solve(self, context, current, next_soln):
+        """ Performs a single iteration of the solver, generating a solution
 
-    for i in xrange(max_iterations):
-        current = next_soln
-        next_soln = list(current)
+            Arguments:
+                current: The current solution, should not be modified.
+                next_soln: On entry, this contains a copy of current, the
+                    values for the next iteration should be placed here.
 
-        for equation in equations:
+            Raises:
+                CalculationError
+        """
+        # pylint: disable=star-args,invalid-name
+
+        # evaluate the jacobian, and solve the linear equations
+        #   J(X)(x(n+1) - x(n)) = -F(xn)
+        nvars = len(self.model.variables.values())
+        J = numpy.zeros((nvars, nvars, ))
+        F = numpy.zeros((nvars, ))
+
+        # Evaluate the F(xn) and J(Xn)
+        for i, var in enumerate(self.model.variables.values()):
+            try:
+                F[i] = -(var.equation.func(*current) - current[var._index])
+            except Exception as err:
+                raise CalculationError(err, var.equation, context)
+            for j in xrange(nvars):
+                J[i, j] = self.jacobian[i][j](*current)
+
+        try:
+            x = numpy.linalg.solve(J, F)
+        except numpy.linalg.LinAlgError as err:
+            raise CalculationError(err, None, context)
+
+        # x now contains x(n+1) - x(n), to get x(n+1) add back in x(n)
+        for i, var in enumerate(self.model.variables.values()):
+            next_soln[var._index] += x[i]
+
+
+class GaussSeidelSolver(object):
+    """ Implements the Gauss-Seidel method for solving a system
+        of non-linear equations.
+    """
+    def __init__(self, model):
+        self.model = model
+
+    def setup(self):
+        """ Perform any prepatory work before solving """
+        pass
+
+    def reset(self):
+        """ Reset the solver """
+        pass
+
+    def solve(self, context, current, next_soln):
+        """ Performs a single iteration of the solver, generating a solution
+
+            Arguments:
+                current: The current solution, should not be modified.
+                next_soln: On entry, this contains a copy of current, the
+                    values for the next iteration should be placed here.
+
+            Raises:
+                CalculationError
+        """
+        # pylint: disable=star-args, unused-argument
+        for equation in self.model.equations:
             variable = equation.variable
             value = None
             try:
@@ -210,24 +295,6 @@ def _run_solver(equations,
                     err,
                     variable.equation,
                     curr_context)
-
-        if debuglist is not None:
-            debuglist.append({v: next_soln[v._index] for v in context.keys()})
-
-        if testf(current, next_soln):
-            soln = {v: next_soln[v._index] for v in context.keys()}
-            break
-
-    if soln is None:
-        # determine the variables that have not converged
-        problem_vars = []
-        for variable in variables.values():
-            if not testf([current[variable._index], ],
-                         [next_soln[variable._index], ]):
-                problem_vars.append(variable.name)
-        raise SolutionNotFoundError(', '.join(problem_vars) +
-                                    ' have not converged')
-    return soln
 
 
 class Model(object):
@@ -266,6 +333,14 @@ class Model(object):
         self._need_function_update = True
 
         _add_functions(self._local_context)
+
+        # Variables used to lambdify the expressions
+        self._arg_list = None
+        self._private_funcs = None
+
+        self._solvers = dict()
+        self._solvers['newton-raphson'] = NewtonRaphsonSolver(self)
+        self._solvers['gauss-seidel'] = GaussSeidelSolver(self)
 
     def set_var_default(self, default):
         """ Sets the general default value for all variables. """
@@ -402,8 +477,85 @@ class Model(object):
         self.set_values(solution, ignore_errors=True)
         self.solutions.append(solution.copy())
 
+    def _clear_lambda_args(self):
+        """ Clears the list of lambda args, ensures that the
+            variables will get rebuilt
+        """
+        self._arg_list = None
+        self._private_funcs = None
+
+    def _build_lambda_args(self, context):
+        """ Creates the argument list for lambdify
+
+            This should be the same argument list for all functions
+            that are lambdified.
+        """
+        if self._arg_list is None:
+            self._arg_list = [x for x in context.keys()]
+            for i in xrange(len(self._arg_list)):
+                if isinstance(self._arg_list[i], Symbol):
+                    self._arg_list[i]._index = i
+
+        if self._private_funcs is None:
+            self._private_funcs = {x[2].__name__: x[1] for x in _RT_FUNCS}
+            for func in _BUILTIN_FUNCS:
+                self._private_funcs[func[0]] = func[1]
+
+    def _lambdify(self, expr):
+        """ Creates a lambdified expression with the appropriate args """
+        return lambdify(self._arg_list, expr, self._private_funcs)
+
+    def _run_solver(self,
+                    solver,
+                    context,
+                    max_iterations=10,
+                    until=None,
+                    threshold=0.001,
+                    debuglist=None):
+        """ Runs the main solver loop
+
+            Returns: a context with the values of the solution
+
+            Raises:
+                SolutionNotFoundError
+        """
+        # pylint: disable=too-many-locals
+
+        testf = (until or (lambda x1, x2: is_aclose(x1, x2, rtol=threshold)))
+
+        if debuglist is not None:
+            debuglist.append(context)
+
+        next_soln = [float(x) for x in context.values()]
+        soln = None
+
+        for _ in xrange(max_iterations):
+            current = next_soln
+            next_soln = list(current)
+
+            solver.solve(context, current, next_soln)
+
+            if debuglist is not None:
+                debuglist.append({v: next_soln[v._index]
+                                 for v in context.keys()})
+
+            if testf(current, next_soln):
+                soln = {v: next_soln[v._index] for v in context.keys()}
+                break
+
+        if soln is None:
+            # determine the variables that have not converged
+            problem_vars = []
+            for variable in self.variables.values():
+                if not testf([current[variable._index], ],
+                             [next_soln[variable._index], ]):
+                    problem_vars.append(variable.name)
+            raise SolutionNotFoundError(', '.join(problem_vars) +
+                                        ' have not converged')
+        return soln
+
     def solve(self, iterations=10, until=None, threshold=0.001,
-              debuglist=None):
+              debuglist=None, method='gauss-seidel'):
         """ Runs the solver.
 
             The solver will try to find a solution until one of the
@@ -421,6 +573,13 @@ class Model(object):
                     vector and the current solution vector.
                 threshold: If using the default end condition, this is the
                     threshold that the residuals must be less than.
+                debuglist: If this is set, then the current context will
+                    be appended every iteration when solving.
+                method: The method that should be used for solving the
+                    system of equations:
+                    available methods:
+                        gauss-seidel
+                        newton-raphson
 
             Raises:
                 SolutionNotFoundError:
@@ -435,29 +594,30 @@ class Model(object):
         # do we need to update the function lambdas?  This is needed
         # if the number of variables/parameters/equations change.
         if self._need_function_update:
-            arg_list = [x for x in current.keys()]
-            for i in xrange(len(arg_list)):
-                if isinstance(arg_list[i], Symbol):
-                    arg_list[i]._index = i
-
-            private_funcs = {x[2].__name__: x[1] for x in _RT_FUNCS}
-            for x in _BUILTIN_FUNCS:
-                private_funcs[x[0]] = x[1]
+            self._clear_lambda_args()
+            self._build_lambda_args(current)
 
             for var in self.variables.values():
-                var.equation.func = lambdify(arg_list,
-                                             var.equation.expr,
-                                             private_funcs)
+                var.equation.func = self._lambdify(var.equation.expr)
+
+            for solver in self._solvers.values():
+                solver.reset()
 
             self._need_function_update = False
 
-        solution = _run_solver(self.equations,
-                               self.variables,
-                               current,
-                               max_iterations=iterations,
-                               until=until,
-                               threshold=threshold,
-                               debuglist=debuglist)
+        if method not in self._solvers:
+            raise ValueError(
+                '{0} is not a valid solver method type'.format(method))
+        solver = self._solvers[method]
+
+        solver.setup()
+        solution = self._run_solver(solver,
+                                    current,
+                                    max_iterations=iterations,
+                                    until=until,
+                                    threshold=threshold,
+                                    debuglist=debuglist)
+
         soln = {k.name: v for k, v in solution.items()}
         self._update_solutions(soln)
 

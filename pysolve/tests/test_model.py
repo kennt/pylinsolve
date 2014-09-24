@@ -188,6 +188,16 @@ class TestModel(unittest.TestCase):
         with self.assertRaises(EquationError):
             model.get_at(varx, vary)
 
+    def test_series_derivative(self):
+        model = Model()
+        varx = model.var('x')
+        vary = model.var('y')
+        equation = model.add('x = y + x(-1)')
+        df = equation.expr.diff(varx)
+        self.assertEquals(0, df)
+        df = equation.expr.diff(vary)
+        self.assertEquals(1, df)
+
     def test_equation_validate(self):
         """ Test the error checking within the solve() function """
         model = Model()
@@ -347,6 +357,57 @@ class TestModel(unittest.TestCase):
         self.assertEquals(6.5, model.solutions[1]['x'])
         self.assertEquals(1, model.solutions[1]['y'])
 
+    def test_newton_raphson(self):
+        """ Test solving with Newton-Raphson, instead of the
+            default Gauss-Seidel
+        """
+        # pylint: disable=too-many-statements
+        model = Model()
+        model.set_var_default(0)
+        model.vars('Y', 'YD', 'Ts', 'Td', 'Hs', 'Hh', 'Gs', 'Cs',
+                   'Cd', 'Ns', 'Nd')
+        model.set_param_default(0)
+        Gd = model.param('Gd')
+        W = model.param('W')
+        alpha1 = model.param('alpha1')
+        alpha2 = model.param('alpha2')
+        theta = model.param('theta')
+
+        model.add('Cs = Cd')
+        model.add('Gs = Gd')
+        model.add('Ts = Td')
+        model.add('Ns = Nd')
+        model.add('YD = (W*Ns) - Ts')
+        model.add('Td = theta * W * Ns')
+        model.add('Cd = alpha1*YD + alpha2*Hh(-1)')
+        model.add('Hs - Hs(-1) =  Gd - Td')
+        model.add('Hh - Hh(-1) = YD - Cd')
+        model.add('Y = Cs + Gs')
+        model.add('Nd = Y/W')
+
+        # setup default parameter values
+        Gd.value = 20.
+        W.value = 1.0
+        alpha1.value = 0.6
+        alpha2.value = 0.4
+        theta.value = 0.2
+
+        debuglist = []
+        model.solve(iterations=100,
+                    threshold=1e-4,
+                    debuglist=debuglist,
+                    method='newton-raphson')
+        soln = round_solution(model.solutions[-1], decimals=1)
+        print soln
+        self.assertTrue(numpy.isclose(38.5, soln['Y']))
+        self.assertTrue(numpy.isclose(7.7, soln['Ts']))
+        self.assertTrue(numpy.isclose(30.8, soln['YD']))
+        self.assertTrue(numpy.isclose(18.5, soln['Cs']))
+        self.assertTrue(numpy.isclose(12.3, soln['Hs']))
+        self.assertTrue(numpy.isclose(12.3, soln['Hh']))
+        self.assertTrue(numpy.isclose(0, soln['_Hs__1']))
+        self.assertTrue(numpy.isclose(0, soln['_Hh__1']))
+
     def test_full_model(self):
         """ Test by implementing a model
 
@@ -430,3 +491,11 @@ class TestModel(unittest.TestCase):
         self.assertTrue(numpy.isclose(80, soln['Cs']))
         self.assertTrue(numpy.isclose(0, soln['Hs'] - prev['Hs']))
         self.assertTrue(numpy.isclose(0, soln['Hh'] - prev['Hh']))
+
+    def test_calling_sympy_functions(self):
+        """ Test the calling of sympy functions """
+        model = Model()
+        model.var('x')
+        model.param('a')
+        model.set_values({'x': 12, 'a': 5})
+        self.assertEquals(1.1, model.evaluate('Max(1, 1.1)'))
