@@ -80,9 +80,9 @@ Changelog
 -----
 * Added the d() function.  Implements the difference between the current value
 and the value from a previous iteration.  d(x) is equivalent to x - x(-1)
-* Added support for the following sympy functions: abs, min, max, sign, sqrt
+* Added support for the following sympy functions: abs, Min, Max, sign, sqrt
 * Added some helper functions to aid in debugging larger models
-* Added some code to show how to debug the models
+* Added support for solving via Newton-Raphson
 
 0.1.4
 -----
