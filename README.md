@@ -90,8 +90,29 @@ For additional examples, view the iPython notebooks at
 
 ## To do list
 ### Data import features
-### Other methods for solving
-### Test with larger models
+
+Changelog
+---------
+
+0.1.5
+-----
+* Added the d() function.  Implements the difference between the current value
+and the value from a previous iteration.  d(x) is equivalent to x - x(-1)
+* Added support for the following sympy functions: abs, Min, Max, sign, sqrt
+* Added some helper functions to aid in debugging larger models
+* Added support for solving via Newton-Raphson
+
+0.1.4
+-----
+* Improved error reporting when unable to solve an equation (due to variable
+missing a value).
+* Also, evaluate() used to require that all variables have a value, but that
+may not be true on initialization, so this requirement has been removed.
+
+0.1.3 (and before)
+------------------
+* Added support for the exp() and log() functions.
+* Fixed a bug where the usage of '>=' within an if_true() would cause an error.
 
 
 
