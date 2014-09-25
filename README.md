@@ -97,6 +97,7 @@ Changelog
 0.1.6
 -----
 * Added support for solving with Broyden's method
+* Optimized the code for Broyden and Newton-Raphson, should be much faster now.
 
 0.1.5
 -----

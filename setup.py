@@ -9,7 +9,7 @@ def read(fname):
 
 setup(
     name='pysolve',
-    version='0.1.5',
+    version='0.1.6',
     packages=find_packages(),
     install_requires=['sympy', 'numpy'],
     license='MIT',

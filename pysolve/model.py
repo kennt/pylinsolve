@@ -185,14 +185,19 @@ def _add_functions(context):
 def _build_jacobian(model):
     """ Creates the jacobian function matrix """
     jacobian = []
+    nvars = len(model.variables.values())
     for var_i in model.variables.values():
-        row_i = []
-        for var_j in model.variables.values():
-            # The equations should be of the form f(...) = 0
-            # so we need to transform
-            #   y = g(...) --> f(...) = g(...) - y = 0
-            expr = var_i.equation.expr - var_i
-            row_i.append(model._lambdify(expr.diff(var_j)))
+        row_i = [None] * nvars
+        for atom in var_i.equation.expr.atoms():
+            if atom.is_Symbol and atom.name in model.variables:
+                expr = var_i.equation.expr - var_i
+                row_i[atom._index] = model._lambdify(expr.diff(atom))
+
+        # add the partial derivative with respect to its own equation
+        # This is f(...) = expr - var_i
+        # therefore the derivative, df/dvar_i = -1
+        row_i[var_i._index] = lambda *x: -1
+
         jacobian.append(row_i)
     return jacobian
 
@@ -215,15 +220,15 @@ def _evaluate_jacobian(model, jacobian, current):
     # pylint: disable=invalid-name, star-args
     nvars = len(model.variables.values())
     J = numpy.zeros((nvars, nvars, ))
-    for i in xrange(len(model.variables.values())):
+    for i in xrange(nvars):
         for j in xrange(nvars):
-            J[i, j] = jacobian[i][j](*current)
+            if jacobian[i][j] is not None:
+                J[i, j] = jacobian[i][j](*current)
     return J
 
 
 class BroydenSolver(object):
-    """ Implementes the Broyden method (using the Sherman-Morrison
-        formula).
+    """ Implements the Broyden method for solving nonlinear equations.
     """
     def __init__(self, model):
         self.model = model
@@ -233,6 +238,8 @@ class BroydenSolver(object):
 
     def setup(self):
         """ Perform any prep work """
+        self.prev_d_inv = None
+        self.prev_d = None
         if self.jacobian is None:
             self.jacobian = _build_jacobian(self.model)
 
