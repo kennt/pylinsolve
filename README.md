@@ -103,8 +103,10 @@ For additional examples, view the iPython notebooks at
 ### Changelog
 
 ##### 0.2.0 (in progress)
+* Improved documentation
+
+##### 0.1.7
 * Tutorial
-* Improved docstrings
 
 ##### 0.1.6
 * Added support for solving with Broyden's method
