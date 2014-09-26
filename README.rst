@@ -10,13 +10,23 @@ sets of equations using Python.
 This tool will take a textual description of the equations 
 and then run the solver iteratively until it converges to a solution.
 
-The solver uses Gauss-Seidel/SOR to iterate to a solution.  
+The solver provides the following choices for solving:
+* Gauss-Seidel
+* Newton-Raphson
+* Broyden
 It also uses parts of sympy to aid in parsing the equations.
 
 The initial motivation for this tool was to solve economic
 models based on Stock Flow Consistent (SFC) models.
 
-Example usage
+
+Installation
+--------------
+::
+	pip install pysolve
+
+
+Usage
 -------------
 
 .. code::
@@ -65,7 +75,7 @@ Example usage
 
 	    prev_soln = model.solutions[-2]
 	    soln = model.solutions[-1]
-	    if is_close(prev_soln, soln, atol=1e-3):
+	    if is_close(prev_soln, soln, rtol=1e-3):
 	        break
 
 	print round_solution(model.solutions[-1], decimals=1)
@@ -73,30 +83,48 @@ Example usage
 For additional examples, view the iPython notebooks at
 	http://nbviewer.ipython.org/github/kennt/monetary-economics/tree/master/
 
+
+Tutorial
+--------
+A short tutorial with more explanation is available at
+	http://nbviewer.ipython.org/github/kennt/monetary-economics/extra/tree/master
+
+
+TODO list
+---------
+- Sparse matrix support (memory improvements for large systems)
+- Documentation
+
+
 Changelog
 ---------
 
+0.2.0 (in progress)
+-------------------
+- Tutorial
+- Improved docstrings
+
 0.1.6
 -----
-* Added support for solving with Broyden's method
-* Optimized the code for Broyden and Newton-Raphson, should be much faster now.
+- Added support for solving with Broyden's method
+- Optimized the code for Broyden and Newton-Raphson, should be much faster now.
 
 0.1.5
 -----
-* Added the d() function.  Implements the difference between the current value
+- Added the d() function.  Implements the difference between the current value
 and the value from a previous iteration.  d(x) is equivalent to x - x(-1)
-* Added support for the following sympy functions: abs, Min, Max, sign, sqrt
-* Added some helper functions to aid in debugging larger models
-* Added support for solving via Newton-Raphson
+- Added support for the following sympy functions: abs, Min, Max, sign, sqrt
+- Added some helper functions to aid in debugging larger models
+- Added support for solving via Newton-Raphson
 
 0.1.4
 -----
-* Improved error reporting when unable to solve an equation (due to variable
+- Improved error reporting when unable to solve an equation (due to variable
 missing a value).
-* Also, evaluate() used to require that all variables have a value, but that
+- Also, evaluate() used to require that all variables have a value, but that
 may not be true on initialization, so this requirement has been removed.
 
 0.1.3 (and before)
 ------------------
-* Added support for the exp() and log() functions.
-* Fixed a bug where the usage of '>=' within an if_true() would cause an error.
+- Added support for the exp() and log() functions.
+- Fixed a bug where the usage of '>=' within an if_true() would cause an error.

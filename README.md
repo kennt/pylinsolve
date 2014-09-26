@@ -6,20 +6,23 @@ This tool will take a textual description of the equations,
 and then run the solver iteratively until it converges to 
 a solution.
 
-pysolve uses Gauss-Seidel/SOR to iterate to a solution.  
+The solver provides the following choices for solving:
+* Gauss-Seidel
+* Newton-Raphson
+* Broyden
 It also uses parts of sympy to aid in parsing the equations and
 evaluating the equations.
 
 The initial motivation for this tool was to solve economic
 models based on Stock Flow Consistent (SFC) models.
 
-## How to install
+### Installation
 
 ```python
 pip install pysolve
 ```
 
-## How to use
+### Usage
 1. Define the variables used in the model.
 2. Define the parameters used in the model.
 3. Define the rules (equations)
@@ -81,41 +84,45 @@ print round_solution(model.solutions[-1], decimals=1)
 
 ```
 
+### Tutorial
+
+A short tutorial with more explanation is available at
+	http://nbviewer.ipython.org/github/kennt/monetary-economics/extra/tree/master
+
 ### More complex examples
 
 For additional examples, view the iPython notebooks at
 	http://nbviewer.ipython.org/github/kennt/monetary-economics/tree/master/
 
-### Complex example with some shortcuts
+### To do list
+##### Data import features
+##### Sparse matrix support (memory improvements for large systems)
+##### Documentation
 
-## To do list
-### Data import features
+### Changelog
 
-Changelog
----------
+##### 0.2.0 (in progress)
+* Tutorial
+* Improved docstrings
 
-0.1.6
------
+##### 0.1.6
 * Added support for solving with Broyden's method
 * Optimized the code for Broyden and Newton-Raphson, should be much faster now.
 
-0.1.5
------
+##### 0.1.5
 * Added the d() function.  Implements the difference between the current value
 and the value from a previous iteration.  d(x) is equivalent to x - x(-1)
 * Added support for the following sympy functions: abs, Min, Max, sign, sqrt
 * Added some helper functions to aid in debugging larger models
 * Added support for solving via Newton-Raphson
 
-0.1.4
------
+##### 0.1.4
 * Improved error reporting when unable to solve an equation (due to variable
 missing a value).
 * Also, evaluate() used to require that all variables have a value, but that
 may not be true on initialization, so this requirement has been removed.
 
-0.1.3 (and before)
-------------------
+##### 0.1.3 (and before)
 * Added support for the exp() and log() functions.
 * Fixed a bug where the usage of '>=' within an if_true() would cause an error.
 
