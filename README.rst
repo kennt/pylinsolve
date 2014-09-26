@@ -11,9 +11,10 @@ This tool will take a textual description of the equations
 and then run the solver iteratively until it converges to a solution.
 
 The solver provides the following choices for solving:
-* Gauss-Seidel
-* Newton-Raphson
-* Broyden
+- Gauss-Seidel
+- Newton-Raphson
+- Broyden
+
 It also uses parts of sympy to aid in parsing the equations.
 
 The initial motivation for this tool was to solve economic
@@ -87,8 +88,7 @@ For additional examples, view the iPython notebooks at
 Tutorial
 --------
 A short tutorial with more explanation is available at
-	http://nbviewer.ipython.org/github/kennt/monetary-economics/extra/tree/master
-
+	http://nbviewer.ipython.org/github/kennt/monetary-economics/blob/master/extra/pysolve%20tutorial.ipynb
 
 TODO list
 ---------
@@ -102,7 +102,11 @@ Changelog
 0.2.0 (in progress)
 -------------------
 - Tutorial
-- Improved docstrings
+- Improved documentation
+
+0.1.7
+-----
+- Tutorial
 
 0.1.6
 -----

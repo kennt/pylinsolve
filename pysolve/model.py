@@ -190,13 +190,17 @@ def _build_jacobian(model):
         row_i = [None] * nvars
         for atom in var_i.equation.expr.atoms():
             if atom.is_Symbol and atom.name in model.variables:
-                expr = var_i.equation.expr - var_i
+                expr = var_i - var_i.equation.expr
                 row_i[atom._index] = model._lambdify(expr.diff(atom))
 
         # add the partial derivative with respect to its own equation
-        # This is f(...) = expr - var_i
-        # therefore the derivative, df/dvar_i = -1
-        row_i[var_i._index] = lambda *x: -1
+        # We store the equations as var_i = expr
+        # But what we really want is f(...) = 0, so convert
+        #   var_i = expr  -->  var_i - expr = 0
+        # and
+        #   f(...) = var_i - expr = 0
+        # therefore the derivative, df/dvar_i = 1
+        row_i[var_i._index] = lambda *x: 1
 
         jacobian.append(row_i)
     return jacobian
@@ -209,7 +213,7 @@ def _evaluate_equations_vector(model, context, current):
     F = numpy.zeros((nvars, ))
     for i, var in enumerate(model.variables.values()):
         try:
-            F[i] = -(var.equation.func(*current) - current[var._index])
+            F[i] = -(current[var._index] - var.equation.func(*current))
         except Exception as err:
             raise CalculationError(err, var.equation, context)
     return F

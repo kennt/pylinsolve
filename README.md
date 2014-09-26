@@ -10,6 +10,7 @@ The solver provides the following choices for solving:
 * Gauss-Seidel
 * Newton-Raphson
 * Broyden
+
 It also uses parts of sympy to aid in parsing the equations and
 evaluating the equations.
 
@@ -87,7 +88,7 @@ print round_solution(model.solutions[-1], decimals=1)
 ### Tutorial
 
 A short tutorial with more explanation is available at
-	http://nbviewer.ipython.org/github/kennt/monetary-economics/extra/tree/master
+	http://nbviewer.ipython.org/github/kennt/monetary-economics/blob/master/extra/pysolve%20tutorial.ipynb
 
 ### More complex examples
 
