@@ -6,6 +6,8 @@
 """
 
 from sympy import Symbol
+from builtins import range
+
 
 from pysolve import InvalidNameError
 from pysolve.variable import Variable

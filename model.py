@@ -8,6 +8,8 @@
 import collections
 
 import numpy
+from builtins import range
+
 
 from sympy import sympify
 from sympy import Symbol, Function
