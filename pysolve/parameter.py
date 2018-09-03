@@ -29,7 +29,7 @@ class Parameter(Symbol):
         if name in Variable.ILLEGAL_NAMES:
             raise InvalidNameError(name, 'Name already used by sympy')
 
-        super(Parameter, self).__init__(name)
+        super().__init__()
         self.name = name
         self.desc = desc
         self.default = default

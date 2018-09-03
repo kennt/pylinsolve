@@ -398,7 +398,7 @@ class TestModel(unittest.TestCase):
                     debuglist=debuglist,
                     method='newton-raphson')
         soln = round_solution(model.solutions[-1], decimals=1)
-        print soln
+        print(soln)
         self.assertTrue(numpy.isclose(38.5, soln['Y']))
         self.assertTrue(numpy.isclose(7.7, soln['Ts']))
         self.assertTrue(numpy.isclose(30.8, soln['YD']))
@@ -472,7 +472,7 @@ class TestModel(unittest.TestCase):
         # Now run until the solutions themselves converge
         prev_soln = model.solutions[-1]
         converges = False
-        for _ in xrange(100):
+        for _ in range(100):
             model.solve(iterations=100, threshold=1e-3)
 
             # run until we converge
@@ -541,7 +541,7 @@ class TestModel(unittest.TestCase):
                     debuglist=debuglist,
                     method='broyden')
         soln = round_solution(model.solutions[-1], decimals=1)
-        print soln
+        print(soln)
         self.assertTrue(numpy.isclose(38.5, soln['Y']))
         self.assertTrue(numpy.isclose(7.7, soln['Ts']))
         self.assertTrue(numpy.isclose(30.8, soln['YD']))

@@ -224,8 +224,8 @@ def _evaluate_jacobian(model, jacobian, current):
     # pylint: disable=invalid-name, star-args
     nvars = len(model.variables.values())
     J = numpy.zeros((nvars, nvars, ))
-    for i in xrange(nvars):
-        for j in xrange(nvars):
+    for i in range(nvars):
+        for j in range(nvars):
             if jacobian[i][j] is not None:
                 J[i, j] = jacobian[i][j](*current)
     return J
@@ -614,7 +614,7 @@ class Model(object):
         """
         if self._arg_list is None:
             self._arg_list = [x for x in context.keys()]
-            for i in xrange(len(self._arg_list)):
+            for i in range(len(self._arg_list)):
                 if isinstance(self._arg_list[i], Symbol):
                     self._arg_list[i]._index = i
 
@@ -651,7 +651,7 @@ class Model(object):
         next_soln = [float(x) for x in context.values()]
         soln = None
 
-        for _ in xrange(max_iterations):
+        for _ in range(max_iterations):
             current = next_soln
             next_soln = list(current)
 
