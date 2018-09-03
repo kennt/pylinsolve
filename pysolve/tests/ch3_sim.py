@@ -55,7 +55,7 @@ start = time.clock()
 
 sim = create_model()
 
-for _ in xrange(100):
+for _ in range(100):
     sim.solve(iterations=100, threshold=1e-5)
 
     prev_soln = sim.solutions[-2]
@@ -64,6 +64,6 @@ for _ in xrange(100):
         break
 
 end = time.clock()
-print "elapsed time = " + str(end-start)
+print("elapsed time = " + str(end-start))
 
-print round_solution(sim.solutions[-1], decimals=1)
+print(round_solution(sim.solutions[-1], decimals=1))

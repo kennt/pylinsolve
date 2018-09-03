@@ -55,11 +55,11 @@ steady_state.set_parameters({'Gd': 20,
                              'W': 1})
 
 steady_state.variables['YD'].value = steady_state.evaluate('Gd*(1-theta)')
-for _ in xrange(100):
+for _ in range(100):
     steady_state.solve(iterations=100, threshold=1e-5)
 
     if is_close(steady_state.solutions[-2],
                 steady_state.solutions[-1],
                 atol=1e-4):
         break
-print round_solution(steady_state.solutions[-1], decimals=1)
+print(round_solution(steady_state.solutions[-1], decimals=1))
