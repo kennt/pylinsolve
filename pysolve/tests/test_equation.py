@@ -15,7 +15,7 @@ from pysolve.equation import Equation, _rewrite, EquationError
 from pysolve.model import _add_var_to_context, _add_param_to_context
 from pysolve.model import _add_functions
 from pysolve.parameter import Parameter
-from pysolve.variable import Variable
+from pysolve.variable import PysolveVariable
 
 
 class TestEquation(unittest.TestCase):
@@ -43,9 +43,9 @@ class TestEquation(unittest.TestCase):
         # pylint: disable=invalid-name
 
         self.model = TestEquation.MockModel()
-        self.model.variables['x'] = Variable('x')
-        self.model.variables['y'] = Variable('y')
-        self.model.variables['z'] = Variable('z')
+        self.model.variables['x'] = PysolveVariable('x')
+        self.model.variables['y'] = PysolveVariable('y')
+        self.model.variables['z'] = PysolveVariable('z')
         self.x = self.model.variables['x']
         self.x.model = self.model
         self.y = self.model.variables['y']
@@ -74,8 +74,8 @@ class TestEquation(unittest.TestCase):
     def test_equation_rewrite(self):
         """ Test the equation rewriting function """
         variables = dict()
-        variables['x'] = Variable('x')
-        variables['y'] = Variable('y')
+        variables['x'] = PysolveVariable('x')
+        variables['y'] = PysolveVariable('y')
         self.assertEquals('x - y', _rewrite(variables, {}, 'x - y'))
         self.assertEquals('xx - y', _rewrite(variables, {}, 'xx - y'))
         self.assertEquals('xx - yx', _rewrite(variables, {}, 'xx - yx'))

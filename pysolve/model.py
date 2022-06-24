@@ -19,7 +19,7 @@ from sympy.utilities import lambdify
 from pysolve.equation import Equation, EquationError, _rewrite
 from pysolve.parameter import Parameter, SeriesParameter
 from pysolve.utils import is_aclose
-from pysolve.variable import Variable
+from pysolve.variable import PysolveVariable
 
 
 class DuplicateNameError(ValueError):
@@ -86,7 +86,7 @@ class _SeriesAccessor(Function):
     @classmethod
     def eval(cls, *arg):
         """ Called from sympy to evaluate the function """
-        if (not isinstance(arg[0], Variable) and
+        if (not isinstance(arg[0], PysolveVariable) and
                 not isinstance(arg[0], Parameter)):
             raise EquationError('not-a-variable',
                                 str(arg[0]),
@@ -95,7 +95,7 @@ class _SeriesAccessor(Function):
         if arg[0].model is None:
             raise EquationError('no-model',
                                 arg[0].name,
-                                'Variable must belong to a model')
+                                'var must belong to a model')
         return arg[0].model.get_at(arg[0], arg[1])
 
 
@@ -112,7 +112,7 @@ class _deltaFunction(Function):
     @classmethod
     def eval(cls, *arg):
         """ Called from sympy to evaluate the function """
-        if (not isinstance(arg[0], Variable) and
+        if (not isinstance(arg[0], PysolveVariable) and
                 not isinstance(arg[0], Parameter)):
             raise EquationError('d-arg-not-a-variable',
                                 str(arg[0]),
@@ -224,8 +224,8 @@ def _evaluate_jacobian(model, jacobian, current):
     # pylint: disable=invalid-name, star-args
     nvars = len(model.variables.values())
     J = numpy.zeros((nvars, nvars, ))
-    for i in xrange(nvars):
-        for j in xrange(nvars):
+    for i in range(nvars):
+        for j in range(nvars):
             if jacobian[i][j] is not None:
                 J[i, j] = jacobian[i][j](*current)
     return J
@@ -478,7 +478,7 @@ class Model(object):
                 default: The default value of the variable, if the
                     value is not set.
 
-            Returns: a Variable
+            Returns: a PysolveVariable
 
             Raises:
                 DuplicateNameError:
@@ -487,7 +487,7 @@ class Model(object):
             default = self._var_default
         if name in self.variables or name in self.parameters:
             raise DuplicateNameError('Name already in use: ' + name)
-        var = Variable(name, desc=desc, default=default)
+        var = PysolveVariable(name, desc=desc, default=default)
         self.variables[name] = var
         var.model = self
 
@@ -614,7 +614,7 @@ class Model(object):
         """
         if self._arg_list is None:
             self._arg_list = [x for x in context.keys()]
-            for i in xrange(len(self._arg_list)):
+            for i in range(len(self._arg_list)):
                 if isinstance(self._arg_list[i], Symbol):
                     self._arg_list[i]._index = i
 
@@ -651,7 +651,7 @@ class Model(object):
         next_soln = [float(x) for x in context.values()]
         soln = None
 
-        for _ in xrange(max_iterations):
+        for _ in range(max_iterations):
             current = next_soln
             next_soln = list(current)
 

@@ -9,7 +9,7 @@ import unittest
 
 from pysolve import InvalidNameError
 from pysolve.parameter import Parameter, SeriesParameter
-from pysolve.variable import Variable
+from pysolve.variable import PysolveVariable
 
 
 class TestParameter(unittest.TestCase):
@@ -23,7 +23,7 @@ class TestParameter(unittest.TestCase):
 
     def test_illegal_names(self):
         """ Test for illeagl name handling """
-        for name in Variable.ILLEGAL_NAMES:
+        for name in PysolveVariable.ILLEGAL_NAMES:
             with self.assertRaises(InvalidNameError) as context:
                 Parameter(name)
             self.assertEquals(name, context.exception.name)
@@ -52,7 +52,7 @@ class TestSeriesParameter(unittest.TestCase):
 
     def test_seriesparameter_create(self):
         """ Simple SeriesParameter create """
-        variable = Variable('x')
+        variable = PysolveVariable('x')
         param = SeriesParameter('a', variable=variable, iteration=0)
         self.assertIsNotNone(param)
 
@@ -60,7 +60,7 @@ class TestSeriesParameter(unittest.TestCase):
         """ Test get/set access of value attribute """
         model = TestSeriesParameter.MockModel()
 
-        varx = Variable('x', default=-1)
+        varx = PysolveVariable('x', default=-1)
         varx.model = model
 
         param = SeriesParameter('a', variable=varx, iteration=-1)

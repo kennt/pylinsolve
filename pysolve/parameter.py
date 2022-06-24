@@ -8,7 +8,7 @@
 from sympy import Symbol
 
 from pysolve import InvalidNameError
-from pysolve.variable import Variable
+from pysolve.variable import PysolveVariable
 
 
 class Parameter(Symbol):
@@ -26,10 +26,10 @@ class Parameter(Symbol):
     # pylint: disable=too-many-ancestors
 
     def __init__(self, name, desc=None, default=None):
-        if name in Variable.ILLEGAL_NAMES:
+        if name in PysolveVariable.ILLEGAL_NAMES:
             raise InvalidNameError(name, 'Name already used by sympy')
 
-        super(Parameter, self).__init__(name)
+        super().__init__()
         self.name = name
         self.desc = desc
         self.default = default

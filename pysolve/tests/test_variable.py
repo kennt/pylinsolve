@@ -8,11 +8,11 @@
 import unittest
 
 from pysolve import InvalidNameError
-from pysolve.variable import Variable
+from pysolve.variable import PysolveVariable
 
 
-class TestVariable(unittest.TestCase):
-    """ Testcases for the Variable class
+class TestPysolveVariable(unittest.TestCase):
+    """ Testcases for the PysolveVariable class
     """
 
     def setUp(self):
@@ -24,7 +24,7 @@ class TestVariable(unittest.TestCase):
 
     def test_illegal_names(self):
         """ Test for illeagl name handling """
-        for name in Variable.ILLEGAL_NAMES:
+        for name in PysolveVariable.ILLEGAL_NAMES:
             with self.assertRaises(InvalidNameError) as context:
-                Variable(name)
+                PysolveVariable(name)
             self.assertEquals(name, context.exception.name)
