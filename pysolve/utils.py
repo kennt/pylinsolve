@@ -19,7 +19,7 @@ def round_solution(soln, decimals=4):
 
         Returns: A new dict() that contains the rounded values.
     """
-    new_soln = dict()
+    new_soln = {}
     for key in soln.keys():
         new_soln[key] = numpy.round(soln[key], decimals=decimals)
     return new_soln
@@ -69,7 +69,7 @@ def generate_html_table(header, adata):
         """ Adds HTML for a single row """
         sdata = "<tr>"
         for data in rowdata:
-            sdata += "<{0}>{1}</{0}>".format(rowtype, data)
+            sdata += f"<{rowtype}>{data}</{rowtype}>"
         sdata += "</tr>"
         return sdata
 

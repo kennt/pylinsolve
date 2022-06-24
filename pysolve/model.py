@@ -9,23 +9,35 @@ import collections
 
 import numpy
 
+
 from sympy import sympify
 from sympy import Symbol, Function
 from sympy.core.cache import clear_cache
 from sympy.parsing.sympy_parser import parse_expr
 from sympy.parsing.sympy_parser import factorial_notation, auto_number
 from sympy.utilities import lambdify
+from sympy import exp, log, Abs, Min, Max, sign, sqrt
 
 from pysolve.equation import Equation, EquationError, _rewrite
 from pysolve.parameter import Parameter, SeriesParameter
 from pysolve.utils import is_aclose
 from pysolve.variable import PysolveVariable
 
+# Built-in funcs, supported by sympy
+_BUILTIN_FUNCS = [('exp', exp),
+                  ('log', log),
+                  ('abs', Abs),
+                  ('Max', Max),
+                  ('Min', Min),
+                  ('sign', sign),
+                  ('sqrt', sqrt),
+                  ]
+
 
 class DuplicateNameError(ValueError):
     """ Exception: Duplicate name detected, name already in use. """
     def __init__(self, text):
-        super(DuplicateNameError, self).__init__()
+        super().__init__()
         self.text = text
 
     def __str__(self):
@@ -35,7 +47,7 @@ class DuplicateNameError(ValueError):
 class SolutionNotFoundError(Exception):
     """ Exception: The solver could not converge on a solution. """
     def __init__(self, text=None):
-        super(SolutionNotFoundError, self).__init__()
+        super().__init__()
         self.text = text
 
     def __str__(self):
@@ -45,7 +57,7 @@ class SolutionNotFoundError(Exception):
 class CalculationError(Exception):
     """ Exception: An error occurred while evaluating an equation """
     def __init__(self, inner, equation, context):
-        super(CalculationError, self).__init__()
+        super().__init__()
         self.inner = inner
         self.equation = equation
         self.context = context
@@ -137,8 +149,7 @@ class _IfTrueFunction(Function):
         """ Called from sympy to evaluate the function """
         if args[0]:
             return 1
-        else:
-            return 0
+        return 0
 
 
 class _IfTrueNoEvalFunction(Function):
@@ -153,7 +164,9 @@ class _IfTrueNoEvalFunction(Function):
     @classmethod
     def eval(cls, *args):
         """ Called during evaluation, but this one does nothing """
+        # pylint: disable=unnecessary-pass
         pass
+
 
 # Functions defined and used at parse time
 _PARSE_FUNCS = [('_series_acc', _SeriesAccessor),
@@ -162,17 +175,6 @@ _PARSE_FUNCS = [('_series_acc', _SeriesAccessor),
 
 # Functions used at runtime
 _RT_FUNCS = [('if_true', _IfTrueFunction, _IfTrueNoEvalFunction), ]
-
-# Built-in funcs, supported by sympy
-from sympy import exp, log, Abs, Min, Max, sign, sqrt
-_BUILTIN_FUNCS = [('exp', exp),
-                  ('log', log),
-                  ('abs', Abs),
-                  ('Max', Max),
-                  ('Min', Min),
-                  ('sign', sign),
-                  ('sqrt', sqrt),
-                  ]
 
 
 def _add_functions(context):
@@ -184,6 +186,7 @@ def _add_functions(context):
 
 def _build_jacobian(model):
     """ Creates the jacobian function matrix """
+    # pylint: disable=protected-access
     jacobian = []
     nvars = len(model.variables.values())
     for var_i in model.variables.values():
@@ -208,20 +211,20 @@ def _build_jacobian(model):
 
 def _evaluate_equations_vector(model, context, current):
     """ Evaluates the vector of equations at current """
-    # pylint: disable=invalid-name, star-args
+    # pylint: disable=invalid-name,protected-access
     nvars = len(model.variables.values())
     F = numpy.zeros((nvars, ))
     for i, var in enumerate(model.variables.values()):
         try:
             F[i] = -(current[var._index] - var.equation.func(*current))
         except Exception as err:
-            raise CalculationError(err, var.equation, context)
+            raise CalculationError(err, var.equation, context) from err
     return F
 
 
 def _evaluate_jacobian(model, jacobian, current):
     """ Evaluates the jacobian at current """
-    # pylint: disable=invalid-name, star-args
+    # pylint: disable=invalid-name
     nvars = len(model.variables.values())
     J = numpy.zeros((nvars, nvars, ))
     for i in range(nvars):
@@ -231,7 +234,7 @@ def _evaluate_jacobian(model, jacobian, current):
     return J
 
 
-class BroydenSolver(object):
+class BroydenSolver:
     """ Implements the Broyden method for solving nonlinear equations.
     """
     def __init__(self, model):
@@ -264,7 +267,7 @@ class BroydenSolver(object):
             Raises:
                 CalculationError
         """
-        # pylint: disable=invalid-name, too-many-locals
+        # pylint: disable=invalid-name, too-many-locals, protected-access
 
         # Here's the algorithm
         #   http://www.math.usm.edu/lambers/mat419/lecture11.pdf
@@ -324,7 +327,7 @@ class BroydenSolver(object):
             next_soln[var._index] += float(dx[i])
 
 
-class NewtonRaphsonSolver(object):
+class NewtonRaphsonSolver:
     """ Implements the Newton-Raphson method for solving a system of
         non-linear equations.
     """
@@ -352,7 +355,7 @@ class NewtonRaphsonSolver(object):
             Raises:
                 CalculationError
         """
-        # pylint: disable=invalid-name
+        # pylint: disable=invalid-name, protected-access
 
         # evaluate the jacobian, and solve the linear equations
         #   J(X)(x(n+1) - x(n)) = -F(xn)
@@ -362,14 +365,14 @@ class NewtonRaphsonSolver(object):
         try:
             x = numpy.linalg.solve(J, F)
         except numpy.linalg.LinAlgError as err:
-            raise CalculationError(err, None, context)
+            raise CalculationError(err, None, context) from err
 
         # x now contains x(n+1) - x(n), to get x(n+1) add back in x(n)
         for i, var in enumerate(self.model.variables.values()):
             next_soln[var._index] += float(x[i])
 
 
-class GaussSeidelSolver(object):
+class GaussSeidelSolver:
     """ Implements the Gauss-Seidel method for solving a system
         of non-linear equations.
     """
@@ -378,10 +381,12 @@ class GaussSeidelSolver(object):
 
     def setup(self):
         """ Perform any prepatory work before solving """
+        # pylint: disable=unnecessary-pass
         pass
 
     def reset(self):
         """ Reset the solver """
+        # pylint: disable=unnecessary-pass
         pass
 
     def solve(self, context, current, next_soln):
@@ -395,7 +400,7 @@ class GaussSeidelSolver(object):
             Raises:
                 CalculationError
         """
-        # pylint: disable=star-args, unused-argument
+        # pylint: disable=unused-argument, protected-access
         for equation in self.model.equations:
             variable = equation.variable
             value = None
@@ -411,14 +416,14 @@ class GaussSeidelSolver(object):
                         raise CalculationError(
                             str(atom)+' has no value, cannot solve equation',
                             variable.equation,
-                            curr_context)
+                            curr_context) from None
                 raise CalculationError(
                     err,
                     variable.equation,
-                    curr_context)
+                    curr_context) from None
 
 
-class Model(object):
+class Model:
     """ This is the main Model class.  Variables, parameters, and
         equations are defined through this class.
 
@@ -443,11 +448,11 @@ class Model(object):
 
         self.variables = collections.OrderedDict()
         self.parameters = collections.OrderedDict()
-        self.solutions = list()
-        self.equations = list()
+        self.solutions = []
+        self.equations = []
 
         self._private_parameters = collections.OrderedDict()
-        self._local_context = dict()
+        self._local_context = {}
         self._var_default = None
         self._param_default = None
 
@@ -459,7 +464,7 @@ class Model(object):
         self._arg_list = None
         self._private_funcs = None
 
-        self._solvers = dict()
+        self._solvers = {}
         self._solvers['newton-raphson'] = NewtonRaphsonSolver(self)
         self._solvers['gauss-seidel'] = GaussSeidelSolver(self)
         self._solvers['broyden'] = BroydenSolver(self)
@@ -504,7 +509,7 @@ class Model(object):
             Returns:
                 a list of the variables created
         """
-        varlist = list()
+        varlist = []
         for arg in args:
             varlist.append(self.var(arg))
         return varlist
@@ -546,7 +551,7 @@ class Model(object):
                 self.parameters[name].value = self._evaluate(value)
             elif not ignore_errors:
                 raise ValueError(
-                    "{0} is not a parameter/variable".format(name))
+                    f"{name} is not a parameter/variable")
 
     def add(self, equation, desc=None):
         """ Adds an equation to the model.
@@ -612,10 +617,11 @@ class Model(object):
             This should be the same argument list for all functions
             that are lambdified.
         """
+        # pylint: disable=protected-access
         if self._arg_list is None:
-            self._arg_list = [x for x in context.keys()]
-            for i in range(len(self._arg_list)):
-                if isinstance(self._arg_list[i], Symbol):
+            self._arg_list = list(context.keys())
+            for i, value in enumerate(self._arg_list):
+                if isinstance(value, Symbol):
                     self._arg_list[i]._index = i
 
         if self._private_funcs is None:
@@ -641,7 +647,7 @@ class Model(object):
             Raises:
                 SolutionNotFoundError
         """
-        # pylint: disable=too-many-locals
+        # pylint: disable=too-many-locals, too-many-arguments, protected-access
 
         testf = (until or (lambda x1, x2: is_aclose(x1, x2, rtol=threshold)))
 
@@ -706,7 +712,7 @@ class Model(object):
             Raises:
                 SolutionNotFoundError:
         """
-        # pylint: disable=invalid-name
+        # pylint: disable=invalid-name, too-many-arguments
         self._validate_equations()
 
         current = self._get_context()
@@ -729,7 +735,7 @@ class Model(object):
 
         if method not in self._solvers:
             raise ValueError(
-                '{0} is not a valid solver method type'.format(method))
+                f'{method} is not a valid solver method type')
         solver = self._solvers[method]
 
         solver.setup()
@@ -784,9 +790,9 @@ class Model(object):
                                 'iteration value must be a number')
         iter_value = int(iter_value)
         if iter_value < 0:
-            iter_name = "_{0}__{1}".format(str(variable), -iter_value)
+            iter_name = f"_{str(variable)}__{-iter_value}"
         else:
-            iter_name = "_{0}_{1}".format(str(variable), iter_value)
+            iter_name = f"_{str(variable)}_{iter_value}"
 
         if iter_name not in self._private_parameters:
             param = SeriesParameter(iter_name,

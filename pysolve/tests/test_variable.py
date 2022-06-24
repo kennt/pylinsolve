@@ -5,6 +5,8 @@
 
 """
 
+# pylint: disable=duplicate-code
+
 import unittest
 
 from pysolve import InvalidNameError
@@ -16,10 +18,7 @@ class TestPysolveVariable(unittest.TestCase):
     """
 
     def setUp(self):
-        pass
-
-    def test_variable_create(self):
-        """ Test simple variable creation """
+        # pylint: disable=unnecessary-pass
         pass
 
     def test_illegal_names(self):
@@ -27,4 +26,4 @@ class TestPysolveVariable(unittest.TestCase):
         for name in PysolveVariable.ILLEGAL_NAMES:
             with self.assertRaises(InvalidNameError) as context:
                 PysolveVariable(name)
-            self.assertEquals(name, context.exception.name)
+            self.assertEqual(name, context.exception.name)

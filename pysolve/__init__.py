@@ -9,8 +9,8 @@
 class InvalidNameError(ValueError):
     """ Exception: Invalid name. """
     def __init__(self, name, text):
-        super(InvalidNameError, self).__init__()
-        self.text = "invalid name : {0} : {1}".format(name, text)
+        super().__init__()
+        self.text = f"invalid name : {name} : {text}"
         self.name = name
 
     def __str__(self):

@@ -5,6 +5,8 @@
 
 """
 
+# pylint: disable=duplicate-code
+
 import unittest
 
 import numpy
@@ -17,7 +19,7 @@ from pysolve.utils import round_solution, is_close
 
 class TestModel(unittest.TestCase):
     """ Testcases for the model """
-    # pylint: disable=missing-docstring,invalid-name
+    # pylint: disable=missing-docstring,invalid-name,too-many-public-methods
 
     def test_model(self):
         """ Create an empty model class """
@@ -42,9 +44,9 @@ class TestModel(unittest.TestCase):
         """ Test set_values of variables """
         model = Model()
         var_x = model.var('x', default=-1)
-        self.assertEquals(-1, var_x.value)
+        self.assertEqual(-1, var_x.value)
         model.set_values({'x': 22})
-        self.assertEquals(22, var_x.value)
+        self.assertEqual(22, var_x.value)
 
         with self.assertRaises(ValueError):
             model.set_values({'zz': -1})
@@ -67,9 +69,9 @@ class TestModel(unittest.TestCase):
         """ Test set_values of parameters """
         model = Model()
         param_a = model.param('a', default=-1)
-        self.assertEquals(-1, param_a.value)
+        self.assertEqual(-1, param_a.value)
         model.set_values({'a': 22})
-        self.assertEquals(22, param_a.value)
+        self.assertEqual(22, param_a.value)
 
         with self.assertRaises(ValueError):
             model.set_values({'zz': -1})
@@ -81,7 +83,7 @@ class TestModel(unittest.TestCase):
         model.var('x', default=0)
 
         model.set_values({'x': 'a+12'})
-        self.assertEquals(11, model.variables['x'].value)
+        self.assertEqual(11, model.variables['x'].value)
 
     def test_set_parameters_equation(self):
         """ Test set_values of parameters using equations """
@@ -90,7 +92,7 @@ class TestModel(unittest.TestCase):
         model.var('x', default=0)
 
         model.set_values({'a': 'x+12'})
-        self.assertEquals(12, model.parameters['a'].value)
+        self.assertEqual(12, model.parameters['a'].value)
 
     def test_setting_multiple_variables(self):
         """ Test set_values() with multiple variables """
@@ -101,26 +103,26 @@ class TestModel(unittest.TestCase):
         model.var('y', default=-2)
 
         model.set_values({'a': 'a+11', 'b': '4*b'})
-        self.assertEquals(14, model.parameters['a'].value)
-        self.assertEquals(16, model.parameters['b'].value)
+        self.assertEqual(14, model.parameters['a'].value)
+        self.assertEqual(16, model.parameters['b'].value)
 
     def test_set_var_default(self):
         """ Test the set_var_default """
         model = Model()
         var = model.var('test')
-        self.assertEquals(None, var.default)
+        self.assertEqual(None, var.default)
         model.set_var_default(12)
         var = model.var('test2')
-        self.assertEquals(12, var.default)
+        self.assertEqual(12, var.default)
 
     def test_param_default(self):
         """ Test the set_param_default """
         model = Model()
         param = model.param('test')
-        self.assertEquals(None, param.default)
+        self.assertEqual(None, param.default)
         model.set_param_default(122)
         param = model.param('test2')
-        self.assertEquals(122, param.default)
+        self.assertEqual(122, param.default)
 
     def test_rule(self):
         """ Test creating rules """
@@ -129,13 +131,13 @@ class TestModel(unittest.TestCase):
         model.var('y')
         eqn = model.add('x = y')
 
-        self.assertEquals(2, len(model.variables))
-        self.assertEquals(0, len(model.parameters))
+        self.assertEqual(2, len(model.variables))
+        self.assertEqual(0, len(model.parameters))
         self.assertIsNotNone(model.variables['x'].equation)
         self.assertIsNone(model.variables['y'].equation)
 
-        self.assertEquals(1, len(model.equations))
-        self.assertEquals(eqn, model.equations[0])
+        self.assertEqual(1, len(model.equations))
+        self.assertEqual(eqn, model.equations[0])
 
     def test_rule_with_coefficients(self):
         """ Test creating rules with simple coefficents """
@@ -144,39 +146,40 @@ class TestModel(unittest.TestCase):
         model.var('y')
         model.add('2*x = 3*y')
 
-        self.assertEquals(2, len(model.variables))
-        self.assertEquals(0, len(model.parameters))
+        self.assertEqual(2, len(model.variables))
+        self.assertEqual(0, len(model.parameters))
 
     def test_series_get_at(self):
         """ Test the series accessor creation, get_at() """
+        # pylint: disable=protected-access
         model = Model()
         varx = model.var('x')
         param = model.get_at(varx, 0)
         self.assertIsNotNone(param)
-        self.assertEquals('_x_0', param.name)
-        self.assertEquals(0, param.iteration)
-        self.assertEquals(varx, param.variable)
+        self.assertEqual('_x_0', param.name)
+        self.assertEqual(0, param.iteration)
+        self.assertEqual(varx, param.variable)
         self.assertTrue(param.name in model._private_parameters)
 
         param = model.get_at(varx, 1)
         self.assertIsNotNone(param)
-        self.assertEquals('_x_1', param.name)
-        self.assertEquals(1, param.iteration)
-        self.assertEquals(varx, param.variable)
+        self.assertEqual('_x_1', param.name)
+        self.assertEqual(1, param.iteration)
+        self.assertEqual(varx, param.variable)
         self.assertTrue(param.name in model._private_parameters)
 
         param = model.get_at(varx, -1)
         self.assertIsNotNone(param)
-        self.assertEquals('_x__1', param.name)
-        self.assertEquals(-1, param.iteration)
-        self.assertEquals(varx, param.variable)
+        self.assertEqual('_x__1', param.name)
+        self.assertEqual(-1, param.iteration)
+        self.assertEqual(varx, param.variable)
         self.assertTrue(param.name in model._private_parameters)
 
         param = model.get_at(varx, 10000)
         self.assertIsNotNone(param)
-        self.assertEquals('_x_10000', param.name)
-        self.assertEquals(10000, param.iteration)
-        self.assertEquals(varx, param.variable)
+        self.assertEqual('_x_10000', param.name)
+        self.assertEqual(10000, param.iteration)
+        self.assertEqual(varx, param.variable)
         self.assertTrue(param.name in model._private_parameters)
 
     def test_series_get_at_errors(self):
@@ -194,9 +197,9 @@ class TestModel(unittest.TestCase):
         vary = model.var('y')
         equation = model.add('x = y + x(-1)')
         df = equation.expr.diff(varx)
-        self.assertEquals(0, df)
+        self.assertEqual(0, df)
         df = equation.expr.diff(vary)
-        self.assertEquals(1, df)
+        self.assertEqual(1, df)
 
     def test_equation_validate(self):
         """ Test the error checking within the solve() function """
@@ -204,34 +207,36 @@ class TestModel(unittest.TestCase):
         model.var('x')
         with self.assertRaises(EquationError) as context:
             model.solve()
-        self.assertEquals('under-specified', context.exception.errorid)
+        self.assertEqual('under-specified', context.exception.errorid)
 
     def test_update_solutions(self):
         """ Test _update_solutions function """
+        # pylint: disable=protected-access
         model = Model()
         varx = model.var('x')
         vary = model.var('y')
 
         model._update_solutions({'x': 1.1, 'y': 2.2})
-        self.assertEquals(1, len(model.solutions))
-        self.assertEquals(1.1, varx.value)
+        self.assertEqual(1, len(model.solutions))
+        self.assertEqual(1.1, varx.value)
         self.assertTrue('x' in model.solutions[0])
-        self.assertEquals(1.1, model.solutions[0]['x'])
-        self.assertEquals(2.2, vary.value)
+        self.assertEqual(1.1, model.solutions[0]['x'])
+        self.assertEqual(2.2, vary.value)
         self.assertTrue('y' in model.solutions[0])
-        self.assertEquals(2.2, model.solutions[0]['y'])
+        self.assertEqual(2.2, model.solutions[0]['y'])
 
         model._update_solutions({'x': 3.3, 'y': 4.4})
-        self.assertEquals(2, len(model.solutions))
-        self.assertEquals(3.3, varx.value)
+        self.assertEqual(2, len(model.solutions))
+        self.assertEqual(3.3, varx.value)
         self.assertTrue('x' in model.solutions[1])
-        self.assertEquals(3.3, model.solutions[1]['x'])
-        self.assertEquals(4.4, vary.value)
+        self.assertEqual(3.3, model.solutions[1]['x'])
+        self.assertEqual(4.4, vary.value)
         self.assertTrue('y' in model.solutions[1])
-        self.assertEquals(4.4, model.solutions[1]['y'])
+        self.assertEqual(4.4, model.solutions[1]['y'])
 
     def test_get_value(self):
         """ Test the get_value function """
+        # pylint: disable=protected-access
         model = Model()
         varx = model.var('x', default=-1)
         vary = model.var('y')
@@ -239,16 +244,16 @@ class TestModel(unittest.TestCase):
         model._update_solutions({'x': 1.1, 'y': 2.2})
         model._update_solutions({'x': 3.3, 'y': 4.4})
 
-        self.assertEquals(1.1, model.get_value(varx, 0))
-        self.assertEquals(1.1, model.get_value(varx, -2))
-        self.assertEquals(4.4, model.get_value(vary, 1))
-        self.assertEquals(4.4, model.get_value(vary, -1))
+        self.assertEqual(1.1, model.get_value(varx, 0))
+        self.assertEqual(1.1, model.get_value(varx, -2))
+        self.assertEqual(4.4, model.get_value(vary, 1))
+        self.assertEqual(4.4, model.get_value(vary, -1))
 
         with self.assertRaises(IndexError):
-            self.assertEquals(-1, model.get_value(varx, -1000))
+            self.assertEqual(-1, model.get_value(varx, -1000))
 
         with self.assertRaises(IndexError):
-            self.assertEquals(-1, model.get_value(varx, 1000))
+            self.assertEqual(-1, model.get_value(varx, 1000))
 
     # test the end condition
     # error: series accessor with non-bound variable
@@ -260,7 +265,7 @@ class TestModel(unittest.TestCase):
         model.var('y', default=10)
         model.param('a', default=.5)
 
-        self.assertEquals(11, model.evaluate('x+y'))
+        self.assertEqual(11, model.evaluate('x+y'))
 
     def test_evaluate_series_access(self):
         """ Test evaluation with series accessor """
@@ -270,8 +275,8 @@ class TestModel(unittest.TestCase):
         model.param('a', default=.5)
         model.solutions = [{'x': 2, 'y': 11, 'a': 60}]
 
-        self.assertEquals(11, model.evaluate('y(-1)'))
-        self.assertEquals(73, model.evaluate('x(-1) + y(-1) + a(-1)'))
+        self.assertEqual(11, model.evaluate('y(-1)'))
+        self.assertEqual(73, model.evaluate('x(-1) + y(-1) + a(-1)'))
 
     def test_delta(self):
         """ test the d() function """
@@ -282,7 +287,7 @@ class TestModel(unittest.TestCase):
         model.solutions = [{'x': 2, 'y': 11, 'a': 60}]
 
         model.variables['x'].value = 5
-        self.assertEquals(3, model.evaluate('d(x)'))
+        self.assertEqual(3, model.evaluate('d(x)'))
 
     def test_delta_error(self):
         model = Model()
@@ -294,15 +299,15 @@ class TestModel(unittest.TestCase):
 
         with self.assertRaises(EquationError) as context:
             model.evaluate('d(-1)')
-        self.assertEquals('d-arg-not-a-variable', context.exception.errorid)
+        self.assertEqual('d-arg-not-a-variable', context.exception.errorid)
 
     def test_if_true(self):
         """ Test the if_true builtin function """
         model = Model()
         model.var('x', default=12)
         model.var('y', default=3131)
-        self.assertEquals(0, model.evaluate('if_true(x > 1000)'))
-        self.assertEquals(1, model.evaluate('if_true(y > 1000)'))
+        self.assertEqual(0, model.evaluate('if_true(x > 1000)'))
+        self.assertEqual(1, model.evaluate('if_true(y > 1000)'))
 
     def test_model_failure(self):
         """ Test for divergence """
@@ -337,11 +342,11 @@ class TestModel(unittest.TestCase):
 
         model.solve(iterations=10, threshold=1e-4)
 
-        self.assertEquals(2, len(model.solutions))
-        self.assertEquals(0, model.solutions[0]['x'])
-        self.assertEquals(0, model.solutions[0]['y'])
-        self.assertEquals(3.5, model.solutions[1]['x'])
-        self.assertEquals(5, model.solutions[1]['y'])
+        self.assertEqual(2, len(model.solutions))
+        self.assertEqual(0, model.solutions[0]['x'])
+        self.assertEqual(0, model.solutions[0]['y'])
+        self.assertEqual(3.5, model.solutions[1]['x'])
+        self.assertEqual(5, model.solutions[1]['y'])
 
         model = Model()
         model.var('x', default=0)
@@ -351,11 +356,11 @@ class TestModel(unittest.TestCase):
 
         model.solve(iterations=10, threshold=1e-4)
 
-        self.assertEquals(2, len(model.solutions))
-        self.assertEquals(0, model.solutions[0]['x'])
-        self.assertEquals(0, model.solutions[0]['y'])
-        self.assertEquals(6.5, model.solutions[1]['x'])
-        self.assertEquals(1, model.solutions[1]['y'])
+        self.assertEqual(2, len(model.solutions))
+        self.assertEqual(0, model.solutions[0]['x'])
+        self.assertEqual(0, model.solutions[0]['y'])
+        self.assertEqual(6.5, model.solutions[1]['x'])
+        self.assertEqual(1, model.solutions[1]['y'])
 
     def test_newton_raphson(self):
         """ Test solving with Newton-Raphson, instead of the
@@ -498,7 +503,7 @@ class TestModel(unittest.TestCase):
         model.var('x')
         model.param('a')
         model.set_values({'x': 12, 'a': 5})
-        self.assertEquals(1.1, model.evaluate('Max(1, 1.1)'))
+        self.assertEqual(1.1, model.evaluate('Max(1, 1.1)'))
 
     def test_broyden(self):
         """ Test solving with Broyden's method, instead of the

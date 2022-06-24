@@ -1,6 +1,8 @@
 """ Code for the SIM model
 """
-# pylint: disable=invalid-name
+
+# pylint: disable=invalid-name, duplicate-code
+
 import time
 
 from pysolve.model import Model
@@ -51,11 +53,12 @@ def create_model():
 
     return model
 
-start = time.clock()
+
+start = time.monotonic()
 
 sim = create_model()
 
-for _ in xrange(100):
+for _ in range(100):
     sim.solve(iterations=100, threshold=1e-5)
 
     prev_soln = sim.solutions[-2]
@@ -63,7 +66,7 @@ for _ in xrange(100):
     if is_close(prev_soln, soln, atol=1e-3):
         break
 
-end = time.clock()
-print "elapsed time = " + str(end-start)
+end = time.monotonic()
+print("elapsed time = " + str(end-start))
 
-print round_solution(sim.solutions[-1], decimals=1)
+print(round_solution(sim.solutions[-1], decimals=1))

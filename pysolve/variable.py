@@ -5,6 +5,8 @@
 
 """
 
+# pylint: disable=duplicate-code
+
 from sympy import Symbol
 
 from pysolve import InvalidNameError

@@ -93,36 +93,37 @@ def create_lp_model():
     model.add('z2 = if_true(tp < bot)')
     return model
 
-start = time.clock()
+
+start = time.monotonic()
 
 sim = create_lp_model()
-sim.set_variables({'V': 95.803,
-                   'Bh': 37.839,
-                   'Bs': 57.964,
-                   'Bcb': 57.964 - 37.839,
-                   'BLh': 1.892,
-                   'BLs': 1.892,
-                   'Hs': 20.125,
-                   'YDr': 95.803,
-                   'Rb': 0.03,
-                   'Pbl': 20})
-sim.set_parameters({'alpha1': 0.8,
-                    'alpha2': 0.2,
-                    'chi': 0.1,
-                    'lambda20': 0.44196,
-                    'lambda22': 1.1,
-                    'lambda23': 1,
-                    'lambda24': 0.03,
-                    'lambda30': 0.3997,
-                    'lambda32': 1,
-                    'lambda33': 1.1,
-                    'lambda34': 0.03,
-                    'theta': 0.1938})
-sim.set_parameters({'G': 20,
-                    'Rbar': 0.03,
-                    'Pblbar': 20})
+sim.set_values({'V': 95.803,
+                'Bh': 37.839,
+                'Bs': 57.964,
+                'Bcb': 57.964 - 37.839,
+                'BLh': 1.892,
+                'BLs': 1.892,
+                'Hs': 20.125,
+                'YDr': 95.803,
+                'Rb': 0.03,
+                'Pbl': 20})
+sim.set_values({'alpha1': 0.8,
+                'alpha2': 0.2,
+                'chi': 0.1,
+                'lambda20': 0.44196,
+                'lambda22': 1.1,
+                'lambda23': 1,
+                'lambda24': 0.03,
+                'lambda30': 0.3997,
+                'lambda32': 1,
+                'lambda33': 1.1,
+                'lambda34': 0.03,
+                'theta': 0.1938})
+sim.set_values({'G': 20,
+                'Rbar': 0.03,
+                'Pblbar': 20})
 
-for _ in xrange(100):
+for _ in range(100):
     sim.solve(iterations=100, threshold=1e-5)
 
     prev_soln = sim.solutions[-2]
@@ -130,7 +131,7 @@ for _ in xrange(100):
     if is_close(prev_soln, soln, atol=1e-3):
         break
 
-end = time.clock()
-print "elapsed time = " + str(end-start)
+end = time.monotonic()
+print("elapsed time = " + str(end-start))
 
-print round_solution(sim.solutions[-1], decimals=1)
+print(round_solution(sim.solutions[-1], decimals=1))

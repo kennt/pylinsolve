@@ -26,19 +26,19 @@ class TestParameter(unittest.TestCase):
         for name in PysolveVariable.ILLEGAL_NAMES:
             with self.assertRaises(InvalidNameError) as context:
                 Parameter(name)
-            self.assertEquals(name, context.exception.name)
+            self.assertEqual(name, context.exception.name)
 
     def test_parameter_access(self):
         """ Test access to get/set of value attribute """
         param = Parameter('a')
         param.value = 1.2
-        self.assertEquals(1.2, param.value)
+        self.assertEqual(1.2, param.value)
 
 
 class TestSeriesParameter(unittest.TestCase):
     """ Testcases for the SeriesParameter class """
 
-    class MockModel(object):
+    class MockModel:
         """ Mockup of the Model class """
         def __init__(self):
             self.last_variable = None
@@ -64,14 +64,14 @@ class TestSeriesParameter(unittest.TestCase):
         varx.model = model
 
         param = SeriesParameter('a', variable=varx, iteration=-1)
-        self.assertEquals(-1, param.value)
-        self.assertEquals(model.last_variable, varx)
-        self.assertEquals(model.last_iteration, -1)
+        self.assertEqual(-1, param.value)
+        self.assertEqual(model.last_variable, varx)
+        self.assertEqual(model.last_iteration, -1)
 
         param = SeriesParameter('a', variable=varx, iteration=2)
-        self.assertEquals(2, param.value)
-        self.assertEquals(model.last_variable, varx)
-        self.assertEquals(model.last_iteration, 2)
+        self.assertEqual(2, param.value)
+        self.assertEqual(model.last_variable, varx)
+        self.assertEqual(model.last_iteration, 2)
 
         with self.assertRaises(AttributeError):
             param.value = 4

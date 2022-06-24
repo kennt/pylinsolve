@@ -5,6 +5,8 @@
 
 """
 
+# pylint: disable=duplicate-code
+
 from sympy import Symbol
 
 from pysolve import InvalidNameError
@@ -61,7 +63,7 @@ class SeriesParameter(Parameter):
     # pylint: disable=too-many-ancestors
 
     def __init__(self, name, variable=None, iteration=None, default=None):
-        super(SeriesParameter, self).__init__(name, default=default)
+        super().__init__(name, default=default)
         if variable is None or iteration is None:
             raise ValueError('variable and iteration cannot be none')
         self.variable = variable

@@ -20,10 +20,8 @@ class EquationError(ValueError):
             text: A description of the error
     """
     def __init__(self, errorid, equation, text):
-        super(EquationError, self).__init__()
-        self.text = 'Error in the equation:{0} : {1} : {2}'.format(equation,
-                                                                   errorid,
-                                                                   text)
+        super().__init__()
+        self.text = f'Error in the equation:{equation} : {errorid} : {text}'
         self.errorid = errorid
 
     def __str__(self):
@@ -44,13 +42,13 @@ def _rewrite(variables, parameters, equation):
     # If variables are being called like functions, treat them
     # as if we are trying to access the time series data.
     for var in variables.keys():
-        new_equation = re.sub(r"\b{0}\(".format(var),
-                              "_series_acc({0},".format(var),
+        new_equation = re.sub(rf"\b{var}\(",
+                              f"_series_acc({var},",
                               new_equation)
 
     for param in parameters.keys():
-        new_equation = re.sub(r"\b{0}\(".format(param),
-                              "_series_acc({0},".format(param),
+        new_equation = re.sub(rf"\b{param}\(",
+                              f"_series_acc({param},",
                               new_equation)
 
     return new_equation
@@ -66,7 +64,7 @@ def _is_linear(expr, var):
     return False
 
 
-class Equation(object):
+class Equation:
     """ This class contains an 'equation'.
 
         An equation is of the form "x = f(...)".  The left-hand side
