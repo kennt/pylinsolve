@@ -1,0 +1,8 @@
+
+How to run the tests
+====================
+  $ nosetests
+
+How to run pylint
+===================
+  $ pylint pysolve

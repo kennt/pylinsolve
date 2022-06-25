@@ -1,6 +1,6 @@
 """ parameter unit tests
 
-    Copyright (c) 2014 Kenn Takara
+    Copyright (c) 2014-2022 Kenn Takara
     See LICENSE for details
 
 """

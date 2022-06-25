@@ -71,7 +71,7 @@ Usage
 	model.add('Nd = Y/W')
 
 	# solve until convergence
-	for _ in xrange(100):
+	for _ in range(100):
 	    model.solve(iterations=100, threshold=1e-3)
 
 	    prev_soln = model.solutions[-2]
@@ -79,7 +79,7 @@ Usage
 	    if is_close(prev_soln, soln, rtol=1e-3):
 	        break
 
-	print round_solution(model.solutions[-1], decimals=1)
+	print(round_solution(model.solutions[-1], decimals=1))
 
 For additional examples, view the iPython notebooks at
 	http://nbviewer.ipython.org/github/kennt/monetary-economics/tree/master/
@@ -99,10 +99,13 @@ TODO list
 Changelog
 ---------
 
-0.2.0 (in progress)
+0.2.0
 -------------------
-- Tutorial
-- Improved documentation
+- Converted to Python 3.8
+- Updated to pass pep8/pycodestyle and pylintrc
+- Fixes for usage with sympy 1.2
+- Added requirements.txt
+
 
 0.1.7
 -----
