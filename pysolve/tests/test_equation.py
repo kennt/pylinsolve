@@ -24,6 +24,7 @@ class TestEquation(unittest.TestCase):
 
     class MockModel:
         """ Mock model class used for equation testing. """
+        # pylint: disable=too-few-public-methods
         def __init__(self):
             self.variables = collections.OrderedDict()
             self.parameters = collections.OrderedDict()
@@ -31,6 +32,8 @@ class TestEquation(unittest.TestCase):
 
         def get_at(self, name, iteration):
             """ Implements the model get_at() """
+            # pylint: disable=no-self-use
+
             if not iteration.is_number or not iteration.is_Number:
                 raise EquationError('test-not-a-number', '', '')
             if iteration < 0:

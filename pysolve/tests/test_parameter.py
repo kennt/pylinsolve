@@ -40,6 +40,7 @@ class TestSeriesParameter(unittest.TestCase):
 
     class MockModel:
         """ Mockup of the Model class """
+        # pylint: disable=too-few-public-methods
         def __init__(self):
             self.last_variable = None
             self.last_iteration = None

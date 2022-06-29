@@ -95,6 +95,7 @@ class Equation:
             func: The 'lambdified' version of expr (for perf)
             variable: The variable that this equation defines.
     """
+    # pylint: disable=too-few-public-methods
     def __init__(self, model, equation, desc=None):
         self.equation = equation
         self.desc = desc
